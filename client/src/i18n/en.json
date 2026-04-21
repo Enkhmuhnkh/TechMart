@@ -1,0 +1,185 @@
+{
+  "nav": {
+    "home": "Home",
+    "shop": "Shop",
+    "aiAssistant": "AI Assistant",
+    "compare": "Compare",
+    "wishlist": "Wishlist",
+    "cart": "Cart",
+    "login": "Login",
+    "register": "Register",
+    "profile": "Profile",
+    "orders": "Orders",
+    "logout": "Logout",
+    "admin": "Admin Panel"
+  },
+  "home": {
+    "hero": {
+      "badge": "AI-Powered Shopping",
+      "title": "Shop Smarter with AI",
+      "subtitle": "Find the perfect tech product — just describe what you need in Mongolian or English and our AI will find it for you.",
+      "cta": "Try AI Assistant",
+      "ctaSecondary": "Browse Products",
+      "stat1": "products",
+      "stat2": "brands",
+      "stat3": "customers"
+    },
+    "categories": "Shop by Category",
+    "featured": "Featured Products",
+    "trending": "Trending Now",
+    "aiPromo": {
+      "title": "Shopping, Reimagined",
+      "subtitle": "Just tell us what you need — in Mongolian or English. Our AI understands your needs and recommends the perfect products.",
+      "example1": "\"3 say dotor programming hiih laptop\"",
+      "example2": "\"battery sain samsung utas\"",
+      "example3": "\"gaming monitor with 144hz\"",
+      "cta": "Chat with AI"
+    },
+    "whyUs": {
+      "title": "Why TechMart",
+      "authentic": "100% Authentic",
+      "authenticDesc": "All products are genuine with full warranty",
+      "fast": "Fast Delivery",
+      "fastDesc": "Ulaanbaatar same-day delivery available",
+      "support": "Expert Support",
+      "supportDesc": "Our tech team is ready to help",
+      "ai": "AI Powered",
+      "aiDesc": "Smart recommendations in Mongolian & English"
+    }
+  },
+  "shop": {
+    "title": "All Products",
+    "search": "Search products...",
+    "filters": "Filters",
+    "sortBy": "Sort by",
+    "sort": {
+      "newest": "Newest",
+      "priceLow": "Price: Low to High",
+      "priceHigh": "Price: High to Low",
+      "name": "Name A-Z"
+    },
+    "category": "Category",
+    "brand": "Brand",
+    "priceRange": "Price Range",
+    "inStockOnly": "In stock only",
+    "noProducts": "No products found",
+    "results": "{{count}} products found",
+    "clearFilters": "Clear filters"
+  },
+  "product": {
+    "addToCart": "Add to Cart",
+    "addToWishlist": "Save",
+    "removeFromWishlist": "Saved",
+    "compare": "Compare",
+    "inStock": "In Stock",
+    "lowStock": "Only {{count}} left",
+    "outOfStock": "Out of Stock",
+    "specs": "Specifications",
+    "reviews": "Reviews",
+    "relatedProducts": "You may also like",
+    "description": "Description",
+    "aiExplanation": "Why this product?",
+    "writeReview": "Write a Review",
+    "reviewPlaceholder": "Share your experience with this product...",
+    "submitReview": "Submit Review"
+  },
+  "cart": {
+    "title": "Your Cart",
+    "empty": "Your cart is empty",
+    "continueShopping": "Continue Shopping",
+    "subtotal": "Subtotal",
+    "checkout": "Proceed to Checkout",
+    "remove": "Remove",
+    "quantity": "Qty"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "shippingInfo": "Shipping Information",
+    "fullName": "Full Name",
+    "phone": "Phone Number",
+    "address": "Address",
+    "city": "City",
+    "district": "District",
+    "paymentMethod": "Payment Method",
+    "cash": "Cash on Delivery",
+    "qpay": "QPay",
+    "placeOrder": "Place Order",
+    "orderSummary": "Order Summary"
+  },
+  "ai": {
+    "title": "AI Shopping Assistant",
+    "subtitle": "Describe what you're looking for and I'll find the best products for you — in Mongolian or English.",
+    "placeholder": "e.g. \"Gaming laptop under 3 million\" or \"16GB RAM-tai laptop\"",
+    "send": "Send",
+    "clear": "New chat",
+    "suggested": "Try asking:",
+    "thinking": "Finding the best products for you...",
+    "noProducts": "I couldn't find matching products. Let me suggest some alternatives.",
+    "viewProduct": "View Product",
+    "addToCart": "Add to Cart"
+  },
+  "compare": {
+    "title": "Compare Products",
+    "empty": "Add products to compare",
+    "add": "Add to compare",
+    "remove": "Remove",
+    "clear": "Clear all",
+    "viewFull": "View product",
+    "maxItems": "You can compare up to 4 products"
+  },
+  "auth": {
+    "login": "Login",
+    "register": "Create Account",
+    "email": "Email",
+    "password": "Password",
+    "fullName": "Full Name",
+    "phone": "Phone (optional)",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "loginSuccess": "Welcome back!",
+    "registerSuccess": "Account created successfully!",
+    "logoutSuccess": "Logged out"
+  },
+  "profile": {
+    "title": "My Profile",
+    "personalInfo": "Personal Information",
+    "language": "Language Preference",
+    "save": "Save Changes",
+    "orderHistory": "Order History",
+    "savedItems": "Saved Items"
+  },
+  "orders": {
+    "title": "My Orders",
+    "empty": "No orders yet",
+    "orderId": "Order #",
+    "status": {
+      "pending": "Pending",
+      "processing": "Processing",
+      "shipped": "Shipped",
+      "delivered": "Delivered",
+      "cancelled": "Cancelled"
+    },
+    "total": "Total",
+    "date": "Date",
+    "viewDetails": "View Details",
+    "items": "items"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try again",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "search": "Search",
+    "back": "Back",
+    "next": "Next",
+    "previous": "Previous",
+    "confirm": "Confirm",
+    "yes": "Yes",
+    "no": "No"
+  }
+}

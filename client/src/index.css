@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --brand-primary: #6C63FF;
+    --brand-secondary: #00D4AA;
+    --surface-0: #FFFFFF;
+    --surface-1: #F6F6F8;
+    --surface-2: #EDEDF2;
+    --text-primary: #0D0D14;
+    --text-secondary: #5C5B70;
+    --text-tertiary: #9998B0;
+    --border: #E2E1EE;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .dark {
+    --surface-0: #0F0F13;
+    --surface-1: #18181E;
+    --surface-2: #222228;
+    --text-primary: #F0EFF8;
+    --text-secondary: #9998B0;
+    --text-tertiary: #5C5B70;
+    --border: #2A2A35;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply font-body text-base antialiased;
+    background-color: var(--surface-0);
+    color: var(--text-primary);
+  }
+
+  h1, h2, h3, h4, h5 {
+    @apply font-display;
+  }
+
+  * { box-sizing: border-box; }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply rounded-full bg-surface-2 dark:bg-dark-2; }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-6 py-3 text-sm font-medium transition-all duration-150 cursor-pointer select-none;
+  }
+  .btn-primary {
+    @apply btn bg-brand-primary text-white hover:brightness-110 active:scale-95;
+  }
+  .btn-secondary {
+    @apply btn border border-brand-primary text-brand-primary bg-transparent hover:bg-brand-primary/5 active:scale-95;
+  }
+  .btn-ghost {
+    @apply btn text-[var(--text-secondary)] hover:bg-[var(--surface-2)] active:scale-95;
+  }
+  .btn-danger {
+    @apply btn bg-red-500 text-white hover:bg-red-600 active:scale-95;
+  }
+  .btn-sm {
+    @apply px-4 py-2 text-xs rounded-lg;
+  }
+
+  .card {
+    @apply rounded-2xl border bg-[var(--surface-0)] shadow-card;
+    border-color: var(--border);
+  }
+
+  .input {
+    @apply w-full rounded-xl border px-4 py-3 text-sm outline-none transition-all;
+    background: var(--surface-1);
+    border-color: var(--border);
+    color: var(--text-primary);
+  }
+  .input:focus {
+    @apply ring-2 ring-brand-primary/30;
+    border-color: var(--brand-primary);
+  }
+
+  .badge {
+    @apply inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-2xs font-medium;
+  }
+  .badge-primary { @apply badge bg-brand-primary/10 text-brand-primary; }
+  .badge-success { @apply badge bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400; }
+  .badge-warning { @apply badge bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400; }
+  .badge-danger  { @apply badge bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400; }
+  .badge-gray    { @apply badge bg-[var(--surface-2)] text-[var(--text-secondary)]; }
+
+  .skeleton {
+    @apply rounded-lg;
+    background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-1) 50%, var(--surface-2) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+}
