@@ -116,12 +116,17 @@ function SaleSidebar() {
 }
 
 function HeroBanner() {
+  const { data: settings } = useQuery({ queryKey: ['store-settings'], queryFn: () => adminApi.getSettings(), staleTime: 60000 });
+  const BANNERS_DATA = settings ? (() => { try { return JSON.parse(settings.hero_banners || '[]'); } catch { return []; } })() : [];
+  const bannerList = BANNERS_DATA.length > 0 ? BANNERS_DATA : BANNERS;
+
   const [cur, setCur] = useState(0);
   useEffect(() => {
-    const t = setInterval(() => setCur(i => (i + 1) % BANNERS.length), 5000);
+    const t = setInterval(() => setCur(i => (i + 1) % bannerList.length), 5000);
     return () => clearInterval(t);
-  }, []);
-  const b = BANNERS[cur];
+  }, [bannerList.length]);
+  const b = bannerList[cur] || bannerList[0];
+  if (!b) return null;
 
   return (
     <div className="relative overflow-hidden rounded-2xl text-white noise" style={{ background: b.bg, minHeight: 300 }}>
@@ -148,7 +153,7 @@ function HeroBanner() {
           <h2 className="font-display font-bold text-3xl md:text-4xl leading-tight mb-4 whitespace-pre-line">
             {b.title}
           </h2>
-          <p className="text-sm mb-8 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{b.sub}</p>
+          <p className="text-sm mb-8 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{b.subtitle || b.sub}</p>
 
           <Link to="/shop"
             className="btn-shine inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl text-sm font-bold transition-all hover:-translate-y-0.5"
@@ -168,7 +173,7 @@ function HeroBanner() {
 
       {/* Dots */}
       <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
-        {BANNERS.map((_, i) => (
+        {bannerList.map((_: any, i: number) => (
           <button key={i} onClick={() => setCur(i)}
             className="rounded-full transition-all duration-400"
             style={{ width: i === cur ? 24 : 8, height: 8, background: i === cur ? b.accent : 'rgba(255,255,255,0.3)', boxShadow: i === cur ? `0 0 8px ${b.accent}` : 'none' }} />
@@ -370,30 +375,39 @@ function PromoBanner() {
 }
 
 function TrustSection() {
-  const items = [
-    { icon: Truck, title: 'Үнэгүй хүргэлт', desc: '100,000₮-аас дээш захиалгад', color: '#6C63FF', bg: 'rgba(108,99,255,0.1)' },
-    { icon: Headphones, title: '24/7 Дэмжлэг', desc: 'Мэргэжлийн техникийн тусламж', color: '#00D4AA', bg: 'rgba(0,212,170,0.1)' },
-    { icon: ShieldCheck, title: 'Мөнгө буцаалт', desc: '30 хоногийн баталгаа', color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-    { icon: Zap, title: 'Жинхэнэ бараа', desc: '100% баталгаат бүтээгдэхүүн', color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
+  const { data: settings } = useQuery({ queryKey: ['store-settings'], queryFn: () => adminApi.getSettings(), staleTime: 60000 });
+  const ICON_MAP: Record<string, React.ElementType> = { truck: Truck, headphones: Headphones, shield: ShieldCheck, zap: Zap, star: Zap, heart: Zap, gift: Zap, lock: ShieldCheck };
+
+  const defaultItems = [
+    { icon: 'truck', title: 'Үнэгүй хүргэлт', desc: '100,000₮-аас дээш захиалгад', color: '#6C63FF' },
+    { icon: 'headphones', title: '24/7 Дэмжлэг', desc: 'Мэргэжлийн техникийн тусламж', color: '#00D4AA' },
+    { icon: 'shield', title: 'Мөнгө буцаалт', desc: '30 хоногийн баталгаа', color: '#F59E0B' },
+    { icon: 'zap', title: 'Жинхэнэ бараа', desc: '100% баталгаат бүтээгдэхүүн', color: '#EF4444' },
   ];
+
+  const items = settings ? (() => { try { const parsed = JSON.parse(settings.trust_items || '[]'); return parsed.length > 0 ? parsed : defaultItems; } catch { return defaultItems; } })() : defaultItems;
+
   return (
     <section className="py-10">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {items.map(({ icon: Icon, title, desc, color, bg }, i) => (
-          <motion.div key={title}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: i * 0.1 }}
-            className="card p-5 text-center group hover:-translate-y-1 hover:shadow-lg cursor-default">
-            <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all duration-300 group-hover:scale-110"
-              style={{ background: bg }}>
-              <Icon className="w-6 h-6" style={{ color }} />
-            </div>
-            <p className="font-bold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{title}</p>
-            <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{desc}</p>
-          </motion.div>
-        ))}
+      <div className={`grid grid-cols-2 gap-4 ${items.length === 4 ? 'md:grid-cols-4' : items.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+        {items.map((item: any, i: number) => {
+          const Icon = ICON_MAP[item.icon] || Zap;
+          return (
+            <motion.div key={i}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.1 }}
+              className="card p-5 text-center group hover:-translate-y-1 hover:shadow-lg cursor-default">
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 transition-all duration-300 group-hover:scale-110"
+                style={{ background: item.color + '18' }}>
+                <Icon className="w-6 h-6" style={{ color: item.color }} />
+              </div>
+              <p className="font-bold text-sm mb-1" style={{ color: 'var(--text-primary)' }}>{item.title}</p>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{item.desc}</p>
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );
