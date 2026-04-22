@@ -1,16 +1,14 @@
 import { Router } from 'express';
 import multer from 'multer';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
 import * as c from './products.controller';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/admin.middleware';
 
-const storage = multer.diskStorage({
-  destination: './uploads',
-  filename: (_req, file, cb) => cb(null, `${uuidv4()}${path.extname(file.originalname)}`),
+// Use memory storage — Cloudinary-д шууд upload хийнэ
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 },
 });
-const upload = multer({ storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router = Router();
 

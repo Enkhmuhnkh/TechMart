@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as productsService from './products.service';
+import { cloudinary } from '../../config/cloudinary';
 
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
@@ -15,7 +16,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       page: req.query.page ? Number(req.query.page) : 1,
       limit: req.query.limit ? Number(req.query.limit) : 20,
     });
-    res.json({ success: true, data: (result as any).rows, meta: (result as any).meta });
+    res.json({ success: true, ...result });
   } catch (err) { next(err); }
 }
 
@@ -65,7 +66,17 @@ export async function updateSpecs(req: Request, res: Response, next: NextFunctio
 export async function uploadImage(req: Request, res: Response, next: NextFunction) {
   try {
     if (!req.file) throw new Error('No file uploaded');
-    const url = `/uploads/${req.file.filename}`;
+
+    // Upload to Cloudinary
+    const result = await new Promise<any>((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'techmart', resource_type: 'image', transformation: [{ width: 800, crop: 'limit', quality: 'auto' }] },
+        (err, result) => { if (err) reject(err); else resolve(result); }
+      );
+      stream.end(req.file!.buffer);
+    });
+
+    const url = result.secure_url;
     const image = await productsService.addImage(req.params.id, url, req.body.isPrimary === 'true');
     res.json({ success: true, data: image });
   } catch (err) { next(err); }

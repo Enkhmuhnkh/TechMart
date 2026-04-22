@@ -1,7 +1,7 @@
 {
   "name": "techmart-server",
   "version": "1.0.0",
-  "description": "TechMart AI — Backend API",
+  "description": "TechMart AI \u2014 Backend API",
   "main": "dist/server.js",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
@@ -25,7 +25,8 @@
     "pg": "^8.11.5",
     "uuid": "^9.0.1",
     "winston": "^3.13.0",
-    "zod": "^3.23.0"
+    "zod": "^3.23.0",
+    "cloudinary": "^2.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
