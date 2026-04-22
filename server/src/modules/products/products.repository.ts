@@ -1,6 +1,5 @@
 import { query, queryOne } from '../../shared/db';
 import { parsePagination, buildMeta } from '../../shared/paginate';
-import { v4 as uuidv4 } from 'uuid';
 
 export interface ProductFilters {
   category?: string;
@@ -16,7 +15,7 @@ export interface ProductFilters {
 }
 
 export async function findAll(filters: ProductFilters) {
-  const { page, limit, offset } = parsePagination(filters as Record<string, unknown>);
+  const { page, limit, offset } = parsePagination(filters);
   const conditions: string[] = ["p.status = 'active'"];
   const vals: unknown[] = [];
   let i = 1;
@@ -76,7 +75,7 @@ export async function findAll(filters: ProductFilters) {
     vals
   );
 
-  return { rows, meta: buildMeta(page, limit, total) };
+  return { data: rows, meta: buildMeta(page, limit, total) };
 }
 
 export async function findBySlug(slug: string) {
