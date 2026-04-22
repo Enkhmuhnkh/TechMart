@@ -15,7 +15,7 @@ export interface ProductFilters {
 }
 
 export async function findAll(filters: ProductFilters) {
-  const { page, limit, offset } = parsePagination(filters);
+  const { page, limit, offset } = parsePagination(filters as Record<string, unknown>);
   const conditions: string[] = ["p.status = 'active'"];
   const vals: unknown[] = [];
   let i = 1;
