@@ -16,7 +16,7 @@ export async function list(req: Request, res: Response, next: NextFunction) {
       page: req.query.page ? Number(req.query.page) : 1,
       limit: req.query.limit ? Number(req.query.limit) : 20,
     });
-    res.json({ success: true, ...result });
+    res.json({ success: true, data: (result as any).data, meta: (result as any).meta });
   } catch (err) { next(err); }
 }
 
@@ -68,7 +68,7 @@ export async function uploadImage(req: Request, res: Response, next: NextFunctio
     if (!req.file) throw new Error('No file uploaded');
 
     // Upload to Cloudinary
-    const result = await new Promise<any>((resolve, reject) => {
+    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { folder: 'techmart', resource_type: 'image', transformation: [{ width: 800, crop: 'limit', quality: 'auto' }] },
         (err, result) => { if (err) reject(err); else resolve(result); }
