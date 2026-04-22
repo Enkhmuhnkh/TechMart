@@ -1,5 +1,5 @@
 import { Outlet, NavLink, Link } from 'react-router-dom';
-import { LayoutDashboard, Package, Tag, Bookmark, ShoppingBag, Users, Star, LogOut, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, Tag, Bookmark, ShoppingBag, Users, Star, LogOut, Menu, X, Settings } from 'lucide-react';
 import { useAuthStore } from '../store';
 import { authApi } from '../api';
 import { useNavigate } from 'react-router-dom';
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/admin/orders', icon: ShoppingBag, label: 'Захиалга' },
   { to: '/admin/users', icon: Users, label: 'Хэрэглэгч' },
   { to: '/admin/reviews', icon: Star, label: 'Сэтгэгдэл' },
+  { to: '/admin/settings', icon: Settings, label: 'Тохиргоо' },
 ];
 
 export function AdminLayout() {

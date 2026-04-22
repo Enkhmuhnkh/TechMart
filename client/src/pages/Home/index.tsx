@@ -2,9 +2,11 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, Truck, Headphones, ShieldCheck, Zap, Sparkles, TrendingUp } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useProducts, useCategories } from '../../hooks';
 import { ProductCard, ProductCardSkeleton } from '../../components/product/ProductCard';
 import { formatPrice, effectivePrice, imgUrl } from '../../utils';
+import { adminApi } from '../../api';
 
 const CATEGORY_ICONS: Record<string, string> = {
   laptops: '💻', phones: '📱', tablets: '📟', monitors: '🖥️',
@@ -47,6 +49,68 @@ function RevealSection({ children, className = '' }: { children: React.ReactNode
       transition: 'opacity 0.6s cubic-bezier(0.16,1,0.3,1), transform 0.6s cubic-bezier(0.16,1,0.3,1)',
     }}>
       {children}
+    </div>
+  );
+}
+
+function SaleSidebar() {
+  const { data, isLoading } = useQuery({
+    queryKey: ['sale-sidebar'],
+    queryFn: () => adminApi.getSaleProducts(),
+    staleTime: 5 * 60 * 1000,
+  });
+  const products = data || [];
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <div className="flex items-center gap-2 mb-2 px-1">
+        <span className="relative flex h-2 w-2">
+          <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#EF4444' }} />
+          <span className="relative inline-flex rounded-full h-2 w-2" style={{ background: '#EF4444' }} />
+        </span>
+        <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Хямдрал</span>
+      </div>
+
+      {/* List */}
+      <div className="flex-1 space-y-0.5 overflow-y-auto scrollbar-hide">
+        {isLoading
+          ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-12 rounded-xl" />)
+          : products.length === 0
+            ? <p className="text-xs text-center py-4" style={{ color: 'var(--text-tertiary)' }}>Хямдрал байхгүй</p>
+            : products.map((p: any, i: number) => {
+              const discount = p.sale_price ? Math.round((1 - Number(p.sale_price) / Number(p.price)) * 100) : 0;
+              return (
+                <motion.div key={p.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.04 }}>
+                  <Link to={`/products/${p.slug}`}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-xl transition-all group hover:bg-[var(--surface-1)]">
+                    <div className="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform group-hover:scale-110"
+                      style={{ background: 'var(--surface-2)' }}>
+                      {p.image_url
+                        ? <img src={imgUrl(p.image_url)} alt={p.name} className="w-8 h-8 object-contain" />
+                        : <span className="text-base">{CATEGORY_ICONS[p.category_slug] || '📦'}</span>}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold truncate group-hover:text-red-500 transition-colors"
+                        style={{ color: 'var(--text-primary)' }}>{p.name}</p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-bold text-red-500">{discount}%</span>
+                        <span className="text-xs line-through" style={{ color: 'var(--text-tertiary)', fontSize: '10px' }}>
+                          {formatPrice(Number(p.price))}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                </motion.div>
+              );
+            })}
+      </div>
+
+      <Link to="/shop?onSale=true"
+        className="mt-2 text-center text-xs font-semibold text-red-500 hover:underline py-1">
+        Бүгдийг харах →
+      </Link>
     </div>
   );
 }
@@ -346,20 +410,10 @@ export default function HomePage() {
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         className="grid md:grid-cols-12 gap-4 mb-8">
 
-        {/* Category sidebar */}
-        <div className="hidden md:flex flex-col gap-0.5 md:col-span-2 border-r pr-3"
+        {/* Sale products sidebar */}
+        <div className="hidden md:flex flex-col md:col-span-2 border-r pr-3 min-h-0"
           style={{ borderColor: 'var(--border)' }}>
-          {cats?.map((cat, i) => (
-            <motion.div key={cat.id} initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: i * 0.03 }}>
-              <Link to={`/shop?category=${cat.slug}`}
-                className="flex items-center gap-2 px-2.5 py-2 rounded-xl text-xs transition-all group hover:bg-[var(--surface-1)] hover:text-brand-primary"
-                style={{ color: 'var(--text-secondary)' }}>
-                <span className="text-sm transition-transform group-hover:scale-110">{CATEGORY_ICONS[cat.slug] || '📦'}</span>
-                <span className="font-medium">{cat.name}</span>
-              </Link>
-            </motion.div>
-          ))}
+          <SaleSidebar />
         </div>
 
         <div className="md:col-span-7"><HeroBanner /></div>

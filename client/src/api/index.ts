@@ -1,8 +1,6 @@
 import { apiClient } from './client';
 import type { ProductFilters, ApiResponse, Product, Category, Brand, Cart, Order, User } from '../types';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
-
 // ─── AUTH ──────────────────────────────────────────────────────────────────
 export const authApi = {
   register: (data: { email: string; password: string; full_name: string; phone?: string }) =>
@@ -97,7 +95,7 @@ export const wishlistApi = {
 export const aiApi = {
   // Returns an EventSource-like stream
   chat: (message: string, sessionId?: string) => {
-    return fetch(`${BASE_URL}/api/ai/chat`, {
+    return fetch('/api/ai/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -125,10 +123,7 @@ export const adminApi = {
   getStockAnalytics: () => apiClient.get('/admin/analytics/stock').then(r => r.data.data),
 
   // Products
-  listProducts: (params: any) => apiClient.get('/products', { params }).then(r => ({
-  data: r.data.data ?? r.data.rows ?? [],
-  meta: r.data.meta,
-})),
+  listProducts: (params: any) => apiClient.get('/products', { params }).then(r => r.data),
   createProduct: (data: any) => apiClient.post('/products', data).then(r => r.data.data),
   updateProduct: (id: string, data: any) => apiClient.put(`/products/${id}`, data).then(r => r.data.data),
   deleteProduct: (id: string) => apiClient.delete(`/products/${id}`).then(r => r.data),
@@ -168,4 +163,9 @@ export const adminApi = {
   listReviews: (params: any) => apiClient.get('/admin/reviews', { params }).then(r => r.data),
   approveReview: (id: string) => apiClient.patch(`/admin/reviews/${id}/approve`).then(r => r.data.data),
   deleteReview: (id: string) => apiClient.delete(`/admin/reviews/${id}`).then(r => r.data),
+
+  // Settings
+  getSettings: () => apiClient.get('/admin/settings').then(r => r.data.data),
+  saveSettings: (data: Record<string, string>) => apiClient.post('/admin/settings', data).then(r => r.data),
+  getSaleProducts: () => apiClient.get('/admin/settings/sale-products').then(r => r.data.data),
 };

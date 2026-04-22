@@ -31,6 +31,7 @@ const AdminBrands = lazy(() => import('./pages/admin/Brands'));
 const AdminOrders = lazy(() => import('./pages/admin/Orders'));
 const AdminUsers = lazy(() => import('./pages/admin/Users'));
 const AdminReviews = lazy(() => import('./pages/admin/Reviews'));
+const AdminSettings = lazy(() => import('./pages/admin/Settings'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -105,6 +106,7 @@ export default function App() {
               <Route path="orders" element={<AdminOrders />} />
               <Route path="users" element={<AdminUsers />} />
               <Route path="reviews" element={<AdminReviews />} />
+              <Route path="settings" element={<AdminSettings />} />
             </Route>
 
             <Route path="*" element={<Navigate to="/" replace />} />

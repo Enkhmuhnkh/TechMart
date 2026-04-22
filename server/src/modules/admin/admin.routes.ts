@@ -201,3 +201,76 @@ router.delete('/reviews/:id', async (req: Request, res: Response, next: NextFunc
 });
 
 export default router;
+
+// ═══════════════════════════════════════════════════
+// STORE SETTINGS
+// ═══════════════════════════════════════════════════
+
+// Get all settings
+router.get('/settings', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { rows } = await query('SELECT key, value FROM store_settings ORDER BY key');
+    const settings: Record<string, string> = {};
+    rows.forEach((r: any) => { settings[r.key] = r.value; });
+    res.json({ success: true, data: settings });
+  } catch (err) { next(err); }
+});
+
+// Update settings
+router.post('/settings', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const updates = req.body as Record<string, string>;
+    for (const [key, value] of Object.entries(updates)) {
+      await query(
+        `INSERT INTO store_settings (key, value, updated_at)
+         VALUES ($1, $2, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+        [key, typeof value === 'object' ? JSON.stringify(value) : String(value)]
+      );
+    }
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
+// Get sale sidebar products (products with sale_price, limit 10)
+router.get('/settings/sale-products', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Check if custom list is set
+    const setting = await queryOne<{ value: string }>(
+      "SELECT value FROM store_settings WHERE key = 'sidebar_sale_product_ids'"
+    );
+    const customIds = setting ? JSON.parse(setting.value || '[]') : [];
+
+    let products;
+    if (customIds.length > 0) {
+      // Return custom selected products
+      const { rows } = await query(
+        `SELECT p.id, p.name, p.name_mn, p.slug, p.price, p.sale_price, p.stock_quantity,
+                c.slug as category_slug, b.name as brand_name,
+                (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
+         FROM products p
+         LEFT JOIN categories c ON p.category_id = c.id
+         LEFT JOIN brands b ON p.brand_id = b.id
+         WHERE p.id = ANY($1) AND p.status = 'active'
+         ORDER BY p.sale_price ASC`,
+        [customIds]
+      );
+      products = rows;
+    } else {
+      // Default: latest discounted products
+      const { rows } = await query(
+        `SELECT p.id, p.name, p.name_mn, p.slug, p.price, p.sale_price, p.stock_quantity,
+                c.slug as category_slug, b.name as brand_name,
+                (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
+         FROM products p
+         LEFT JOIN categories c ON p.category_id = c.id
+         LEFT JOIN brands b ON p.brand_id = b.id
+         WHERE p.sale_price IS NOT NULL AND p.status = 'active'
+         ORDER BY p.created_at DESC
+         LIMIT 10`
+      );
+      products = rows;
+    }
+    res.json({ success: true, data: products });
+  } catch (err) { next(err); }
+});
