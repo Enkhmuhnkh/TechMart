@@ -129,18 +129,29 @@ function HeroBanner() {
   if (!b) return null;
 
   return (
-    <div className="relative overflow-hidden rounded-2xl text-white noise" style={{ background: b.bg, minHeight: 300 }}>
-      {/* Animated orbs */}
-      <div className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20" style={{ background: b.accent }} />
-      <div className="orb absolute bottom-0 left-1/4 w-48 h-48 opacity-10" style={{ background: b.accent, animationDelay: '3s' }} />
+    <div className="relative overflow-hidden rounded-2xl text-white" style={{ background: b.bg, minHeight: 300 }}>
 
-      {/* Grid pattern overlay */}
-      <div className="absolute inset-0 opacity-5" style={{
+      {/* Background image (if set) */}
+      {b.bg_image_url && (
+        <img src={b.bg_image_url} alt="" className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 0.3, zIndex: 0 }} />
+      )}
+
+      {/* Animated orbs — only when no bg image */}
+      {!b.bg_image_url && (
+        <>
+          <div className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20" style={{ background: b.accent }} />
+          <div className="orb absolute bottom-0 left-1/4 w-48 h-48 opacity-10" style={{ background: b.accent, animationDelay: '3s' }} />
+        </>
+      )}
+
+      {/* Grid pattern */}
+      <div className="absolute inset-0 opacity-5" style={{ zIndex: 1,
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
         backgroundSize: '40px 40px'
       }} />
 
-      <div className="relative flex items-center justify-between px-8 md:px-14 py-12 gap-4">
+      <div className="relative flex items-center justify-between px-8 md:px-14 py-12 gap-4" style={{ zIndex: 2 }}>
         <motion.div key={cur} initial={{ opacity: 0, x: -28 }} animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }} className="flex-1 max-w-md">
 
@@ -162,17 +173,24 @@ function HeroBanner() {
           </Link>
         </motion.div>
 
-        <motion.div key={`emoji-${cur}`}
-          initial={{ opacity: 0, scale: 0.6, rotate: -15 }}
+        {/* Right side: image or emoji */}
+        <motion.div key={`right-${cur}`}
+          initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ duration: 0.6, type: 'spring', stiffness: 200 }}
-          className="text-8xl md:text-[120px] select-none hidden md:block animate-float">
-          {b.emoji}
+          transition={{ duration: 0.6, type: 'spring', stiffness: 180 }}
+          className="hidden md:flex items-center justify-center flex-shrink-0">
+          {b.image_url ? (
+            <img src={b.image_url} alt={b.title}
+              className="h-52 w-52 object-contain drop-shadow-2xl animate-float"
+              style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.4))' }} />
+          ) : (
+            <div className="text-8xl md:text-[110px] select-none animate-float">{b.emoji}</div>
+          )}
         </motion.div>
       </div>
 
       {/* Dots */}
-      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+      <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2" style={{ zIndex: 3 }}>
         {bannerList.map((_: any, i: number) => (
           <button key={i} onClick={() => setCur(i)}
             className="rounded-full transition-all duration-400"

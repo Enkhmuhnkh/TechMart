@@ -11,7 +11,10 @@ import toast from 'react-hot-toast';
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Banner {
   id: number; tag: string; title: string; subtitle: string;
-  cta: string; emoji: string; accent: string; image_url: string; bg: string;
+  cta: string; emoji: string; accent: string;
+  image_url: string;      // баруун тал — бүтээгдэхүүний зураг
+  bg_image_url: string;   // арын дэвсгэр зураг
+  bg: string;
 }
 interface TrustItem {
   icon: string; title: string; desc: string; color: string;
@@ -107,7 +110,7 @@ export default function AdminSettings() {
   // Banner helpers
   const addBanner = () => {
     if (banners.length >= 3) { toast.error('Хамгийн ихдээ 3 banner'); return; }
-    const newBanner: Banner = { id: Date.now(), tag: 'Шинэ banner', title: 'Гарчиг', subtitle: 'Дэд гарчиг', cta: 'Үзэх', emoji: '🚀', accent: '#6C63FF', image_url: '', bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' };
+    const newBanner: Banner = { id: Date.now(), tag: 'Шинэ banner', title: 'Гарчиг', subtitle: 'Дэд гарчиг', cta: 'Үзэх', emoji: '🚀', accent: '#6C63FF', image_url: '', bg_image_url: '', bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' };
     setBanners(b => [...b, newBanner]);
     setEditBannerId(newBanner.id);
   };
@@ -126,11 +129,11 @@ export default function AdminSettings() {
     setBanners(arr);
   };
 
-  const handleBannerImage = (bannerId: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleBannerImage = (bannerId: number, field: 'image_url' | 'bg_image_url', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => updateBanner(bannerId, 'image_url', reader.result as string);
+    reader.onload = () => updateBanner(bannerId, field, reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -302,22 +305,56 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
-                    {/* Image upload */}
-                    <div>
-                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Banner арын зураг (заавал биш)</label>
-                      <div className="flex items-center gap-3">
-                        <input ref={el => { fileRefs.current[`banner-${banner.id}`] = el; }} type="file" accept="image/*"
-                          onChange={e => handleBannerImage(banner.id, e)} className="hidden" />
-                        <button onClick={() => fileRefs.current[`banner-${banner.id}`]?.click()}
-                          className="btn-ghost border rounded-xl px-4 py-2 text-sm flex items-center gap-2" style={{ borderColor: 'var(--border)' }}>
-                          <Upload className="w-4 h-4" /> Зураг оруулах
-                        </button>
-                        {banner.image_url && (
-                          <>
-                            <img src={banner.image_url} className="w-16 h-10 rounded-lg object-cover" alt="" />
-                            <button onClick={() => updateBanner(banner.id, 'image_url', '')} className="text-red-500"><X className="w-4 h-4" /></button>
-                          </>
-                        )}
+                    {/* Image uploads */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {/* Баруун тал — бүтээгдэхүүний зураг */}
+                      <div>
+                        <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                          📦 Баруун талын зураг
+                          <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(бүтээгдэхүүн)</span>
+                        </label>
+                        <input ref={el => { fileRefs.current[`banner-img-${banner.id}`] = el; }} type="file" accept="image/*"
+                          onChange={e => handleBannerImage(banner.id, 'image_url', e)} className="hidden" />
+                        <div className="flex flex-col gap-2">
+                          <button onClick={() => fileRefs.current[`banner-img-${banner.id}`]?.click()}
+                            className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2 w-full" style={{ borderColor: 'var(--border)' }}>
+                            <Upload className="w-3.5 h-3.5" /> Зураг оруулах
+                          </button>
+                          {banner.image_url && (
+                            <div className="flex items-center gap-2">
+                              <img src={banner.image_url} className="w-14 h-14 rounded-xl object-contain" style={{ background: 'var(--surface-2)' }} alt="" />
+                              <button onClick={() => updateBanner(banner.id, 'image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                            </div>
+                          )}
+                          {!banner.image_url && (
+                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Зураггүй бол emoji харагдана</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Арын дэвсгэр зураг */}
+                      <div>
+                        <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                          🖼️ Арын дэвсгэр зураг
+                          <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(background)</span>
+                        </label>
+                        <input ref={el => { fileRefs.current[`banner-bg-${banner.id}`] = el; }} type="file" accept="image/*"
+                          onChange={e => handleBannerImage(banner.id, 'bg_image_url', e)} className="hidden" />
+                        <div className="flex flex-col gap-2">
+                          <button onClick={() => fileRefs.current[`banner-bg-${banner.id}`]?.click()}
+                            className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2 w-full" style={{ borderColor: 'var(--border)' }}>
+                            <Upload className="w-3.5 h-3.5" /> Зураг оруулах
+                          </button>
+                          {banner.bg_image_url && (
+                            <div className="flex items-center gap-2">
+                              <img src={banner.bg_image_url} className="w-14 h-10 rounded-xl object-cover" alt="" />
+                              <button onClick={() => updateBanner(banner.id, 'bg_image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                            </div>
+                          )}
+                          {!banner.bg_image_url && (
+                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Зураггүй бол gradient харагдана</p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -325,8 +362,8 @@ export default function AdminSettings() {
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Урьдчилан харах</label>
                       <div className="rounded-xl overflow-hidden relative" style={{ background: banner.bg, minHeight: 120 }}>
-                        {banner.image_url && <img src={banner.image_url} className="absolute inset-0 w-full h-full object-cover opacity-30" alt="" />}
-                        <div className="relative p-6 flex items-center justify-between">
+                        {banner.bg_image_url && <img src={banner.bg_image_url} className="absolute inset-0 w-full h-full object-cover opacity-30" alt="" />}
+                        <div className="relative p-6 flex items-center justify-between" style={{ zIndex: 1 }}>
                           <div>
                             <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: banner.accent + '33', color: banner.accent }}>✦ {banner.tag}</span>
                             <h3 className="text-white font-bold text-lg mt-2 whitespace-pre-line leading-snug">{banner.title}</h3>
@@ -335,7 +372,10 @@ export default function AdminSettings() {
                               {banner.cta} →
                             </span>
                           </div>
-                          <div className="text-5xl">{banner.emoji}</div>
+                          {banner.image_url
+                            ? <img src={banner.image_url} alt="" className="h-20 w-20 object-contain" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+                            : <div className="text-5xl">{banner.emoji}</div>
+                          }
                         </div>
                       </div>
                     </div>
