@@ -2,8 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ShoppingCart, Heart, Search, Sun, Moon, User, LayoutDashboard, LogOut, X, Sparkles } from 'lucide-react';
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore, useCartStore, useUIStore } from '../../store';
-import { authApi } from '../../api';
+import { authApi, adminApi } from '../../api';
 import toast from 'react-hot-toast';
 
 export function Navbar() {
@@ -17,6 +18,17 @@ export function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
 
   const count = itemCount();
+
+  // ── Дэлгүүрийн тохиргоо (нэр + лого) динамик уншдаг ──────────────────────
+  const { data: storeSettings } = useQuery({
+    queryKey: ['store-settings'],
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 5 * 60 * 1000, // 5 минут cache
+    retry: 1,
+  });
+
+  const storeName = storeSettings?.store_name || 'TechMart';
+  const storeLogo = storeSettings?.store_logo || null;
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,13 +58,24 @@ export function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 gap-2 sm:gap-3">
 
-          {/* Logo */}
+          {/* ── Logo + Дэлгүүрийн нэр (динамик) ── */}
           <Link to="/" className="flex-shrink-0 flex items-center gap-2">
-            <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-display font-bold text-sm">T</span>
-            </div>
+            {storeLogo ? (
+              <img
+                src={storeLogo}
+                alt={storeName}
+                className="w-8 h-8 rounded-lg object-contain"
+                style={{ background: 'var(--surface-1)' }}
+              />
+            ) : (
+              <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center shadow-sm flex-shrink-0">
+                <span className="text-white font-display font-bold text-sm">
+                  {storeName[0]?.toUpperCase() || 'T'}
+                </span>
+              </div>
+            )}
             <span className="font-display font-bold text-lg hidden sm:block" style={{ color: 'var(--text-primary)' }}>
-              TechMart
+              {storeName}
             </span>
           </Link>
 
@@ -94,7 +117,7 @@ export function Navbar() {
               <Search className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
             </button>
 
-            {/* ✨ AI Button - Prominent, always visible */}
+            {/* ✨ AI Button */}
             <Link to="/ai" className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-105 active:scale-95 flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #6C63FF, #a855f7)', color: 'white', boxShadow: '0 0 14px rgba(108,99,255,0.45)' }}>
               <Sparkles className="w-3.5 h-3.5 animate-pulse" />

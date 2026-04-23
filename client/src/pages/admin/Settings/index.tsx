@@ -51,8 +51,14 @@ export default function AdminSettings() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'sidebar' | 'trust' | 'announce'>('store');
 
-  // Store info
-  const [storeInfo, setStoreInfo] = useState({ store_name: 'TechMart', store_phone: '', store_email: '', announcement: '' });
+  // Store info — store_logo нэмэгдсэн
+  const [storeInfo, setStoreInfo] = useState({
+    store_name: 'TechMart',
+    store_phone: '',
+    store_email: '',
+    announcement: '',
+    store_logo: '',   // ← лого (base64 эсвэл Cloudinary URL)
+  });
 
   // Banners
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -66,6 +72,7 @@ export default function AdminSettings() {
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
 
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const logoFileRef = useRef<HTMLInputElement | null>(null);
 
   // Load settings
   const { data: settings, isLoading } = useQuery({
@@ -85,6 +92,7 @@ export default function AdminSettings() {
       store_phone: settings.store_phone || '',
       store_email: settings.store_email || '',
       announcement: settings.announcement || '',
+      store_logo: settings.store_logo || '',
     });
     try { setBanners(JSON.parse(settings.hero_banners || '[]')); } catch { setBanners([]); }
     try { setTrustItems(JSON.parse(settings.trust_items || '[]')); } catch { setTrustItems([]); }
@@ -93,7 +101,13 @@ export default function AdminSettings() {
 
   const saveMutation = useMutation({
     mutationFn: (data: Record<string, string>) => adminApi.saveSettings(data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['store-settings'] }); qc.invalidateQueries({ queryKey: ['sale-sidebar'] }); toast.success('Хадгалагдлаа ✓'); setSaving(false); },
+    onSuccess: () => {
+      // store-settings cache шинэчлэх → Navbar автоматаар шинэчлэгдэнэ
+      qc.invalidateQueries({ queryKey: ['store-settings'] });
+      qc.invalidateQueries({ queryKey: ['sale-sidebar'] });
+      toast.success('Хадгалагдлаа ✓');
+      setSaving(false);
+    },
     onError: () => { toast.error('Алдаа гарлаа'); setSaving(false); },
   });
 
@@ -105,6 +119,22 @@ export default function AdminSettings() {
       trust_items: JSON.stringify(trustItems),
       sidebar_sale_product_ids: JSON.stringify(selectedSaleIds),
     });
+  };
+
+  // ── Лого upload ──────────────────────────────────────────────────────────────
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    // Хэмжээ шалгах (2MB хүртэл)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Зургийн хэмжээ 2MB-аас бага байх ёстой');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setStoreInfo(s => ({ ...s, store_logo: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
   };
 
   // Banner helpers
@@ -203,18 +233,98 @@ export default function AdminSettings() {
       {/* ── Дэлгүүрийн мэдээлэл ── */}
       {activeTab === 'store' && (
         <SectionCard icon={<Store className="w-4 h-4 text-brand-primary" />} title="Дэлгүүрийн мэдээлэл">
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="space-y-5">
+
+            {/* ── Лого upload ── */}
             <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Дэлгүүрийн нэр</label>
-              <input value={storeInfo.store_name} onChange={e => setStoreInfo(s => ({ ...s, store_name: e.target.value }))} className="input text-sm" />
+              <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                🖼️ Дэлгүүрийн лого
+                <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(Header дээр харагдана — PNG, SVG санал болгоно)</span>
+              </label>
+
+              <div className="flex items-center gap-4">
+                {/* Лого preview */}
+                <div className="w-16 h-16 rounded-xl border-2 flex items-center justify-center flex-shrink-0 overflow-hidden transition-all"
+                  style={{ borderColor: storeInfo.store_logo ? 'var(--brand-primary)' : 'var(--border)', background: 'var(--surface-1)' }}>
+                  {storeInfo.store_logo ? (
+                    <img src={storeInfo.store_logo} alt="Logo preview" className="w-full h-full object-contain p-1" />
+                  ) : (
+                    <div className="w-10 h-10 bg-brand-primary rounded-lg flex items-center justify-center">
+                      <span className="text-white font-bold text-lg">
+                        {storeInfo.store_name[0]?.toUpperCase() || 'T'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Buttons */}
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={logoFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                  />
+                  <button
+                    onClick={() => logoFileRef.current?.click()}
+                    className="btn-ghost border rounded-xl px-4 py-2 text-xs flex items-center gap-2"
+                    style={{ borderColor: 'var(--border)' }}>
+                    <Upload className="w-3.5 h-3.5" />
+                    {storeInfo.store_logo ? 'Лого солих' : 'Лого оруулах'}
+                  </button>
+                  {storeInfo.store_logo && (
+                    <button
+                      onClick={() => setStoreInfo(s => ({ ...s, store_logo: '' }))}
+                      className="text-xs text-red-500 flex items-center gap-1.5 hover:underline">
+                      <X className="w-3 h-3" /> Лого устгах
+                    </button>
+                  )}
+                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+                    Санал болгох: 64×64px, PNG/SVG, 2MB хүртэл
+                  </p>
+                </div>
+              </div>
+
+              {/* Live preview Navbar-д хэрхэн харагдах */}
+              <div className="mt-3 p-3 rounded-xl flex items-center gap-2 border"
+                style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}>
+                <span className="text-xs font-semibold mr-1" style={{ color: 'var(--text-tertiary)' }}>Navbar preview:</span>
+                {storeInfo.store_logo ? (
+                  <img src={storeInfo.store_logo} alt="" className="w-6 h-6 rounded object-contain" style={{ background: 'var(--surface-2)' }} />
+                ) : (
+                  <div className="w-6 h-6 bg-brand-primary rounded flex items-center justify-center">
+                    <span className="text-white font-bold text-[10px]">{storeInfo.store_name[0]?.toUpperCase() || 'T'}</span>
+                  </div>
+                )}
+                <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{storeInfo.store_name || 'TechMart'}</span>
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Утас</label>
-              <input value={storeInfo.store_phone} onChange={e => setStoreInfo(s => ({ ...s, store_phone: e.target.value }))} className="input text-sm" placeholder="+976 9900 0000" />
-            </div>
-            <div className="sm:col-span-2">
-              <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Имэйл</label>
-              <input value={storeInfo.store_email} onChange={e => setStoreInfo(s => ({ ...s, store_email: e.target.value }))} className="input text-sm" placeholder="info@techmart.mn" />
+
+            <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+
+            {/* Дэлгүүрийн нэр болон холбоо барих */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+                  Дэлгүүрийн нэр
+                  <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(Header дээр харагдана)</span>
+                </label>
+                <input
+                  value={storeInfo.store_name}
+                  onChange={e => setStoreInfo(s => ({ ...s, store_name: e.target.value }))}
+                  className="input text-sm"
+                  placeholder="TechMart"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Утас</label>
+                <input value={storeInfo.store_phone} onChange={e => setStoreInfo(s => ({ ...s, store_phone: e.target.value }))} className="input text-sm" placeholder="+976 9900 0000" />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Имэйл</label>
+                <input value={storeInfo.store_email} onChange={e => setStoreInfo(s => ({ ...s, store_email: e.target.value }))} className="input text-sm" placeholder="info@techmart.mn" />
+              </div>
             </div>
           </div>
         </SectionCard>
@@ -234,10 +344,8 @@ export default function AdminSettings() {
 
           {banners.map((banner, idx) => (
             <div key={banner.id} className="card overflow-hidden">
-              {/* Preview bar */}
               <div className="h-2" style={{ background: banner.accent }} />
               <div className="p-4">
-                {/* Collapsed header */}
                 <div className="flex items-center gap-3">
                   <span className="text-2xl">{banner.emoji}</span>
                   <div className="flex-1 min-w-0">
@@ -257,7 +365,6 @@ export default function AdminSettings() {
                   </div>
                 </div>
 
-                {/* Expanded editor */}
                 {editBannerId === banner.id && (
                   <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
                     <div className="grid sm:grid-cols-2 gap-4">
@@ -279,7 +386,6 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
-                    {/* Emoji picker */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Emoji</label>
                       <div className="flex flex-wrap gap-2">
@@ -293,7 +399,6 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
-                    {/* Accent color */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Accent өнгө</label>
                       <div className="flex gap-2 flex-wrap">
@@ -305,9 +410,7 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
-                    {/* Image uploads */}
                     <div className="grid sm:grid-cols-2 gap-4">
-                      {/* Баруун тал — бүтээгдэхүүний зураг */}
                       <div>
                         <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
                           📦 Баруун талын зураг
@@ -332,7 +435,6 @@ export default function AdminSettings() {
                         </div>
                       </div>
 
-                      {/* Арын дэвсгэр зураг */}
                       <div>
                         <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
                           🖼️ Арын дэвсгэр зураг
@@ -358,7 +460,6 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
-                    {/* Preview */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Урьдчилан харах</label>
                       <div className="rounded-xl overflow-hidden relative" style={{ background: banner.bg, minHeight: 120 }}>
@@ -400,8 +501,6 @@ export default function AdminSettings() {
           <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
             Home хуудасны зүүн талд харагдах бараануудыг сонго (хамгийн ихдээ 10). Сонгоогүй бол автоматаар харуулна.
           </p>
-
-          {/* Selected count */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <span className="badge text-xs" style={{ background: 'rgba(239,68,68,0.1)', color: '#EF4444' }}>
@@ -411,7 +510,6 @@ export default function AdminSettings() {
                 <button onClick={() => setSelectedSaleIds([])} className="text-xs text-red-500 hover:underline">Цэвэрлэх</button>
               )}
             </div>
-            {/* Search */}
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
               <input value={saleSearch} onChange={e => setSaleSearch(e.target.value)}
