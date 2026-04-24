@@ -15,19 +15,45 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const BANNERS = [
-  { tag: 'Шинэ ирэлт', title: 'Хамгийн сүүлийн\nTech гаджетууд', sub: 'Laptop, Phone, Monitor болон бусад', cta: 'Үзэх', bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', accent: '#6C63FF', emoji: '💻' },
-  { tag: 'Gaming Setup', title: 'Тоглоомын\nДэлгэрэнгүй дэлгүүр', sub: 'Monitor, GPU, Keyboard, Mouse', cta: 'Харах', bg: 'linear-gradient(135deg, #0d0d0d 0%, #1a0a2e 50%, #2d1b69 100%)', accent: '#00D4AA', emoji: '🎮' },
-  { tag: 'Хямдрал 🔥', title: 'До 30% хямдрал\nСонгосон бараанд', sub: 'Laptop, Earbuds, Smartwatch', cta: 'Авах', bg: 'linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0f4c75 100%)', accent: '#F59E0B', emoji: '📱' },
+  { tag: 'Шинэ ирэлт', title: 'Хамгийн сүүлийн\nTech гаджетууд', sub: 'Laptop, Phone, Monitor болон бусад', cta: 'Үзэх', bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)', accent: '#6C63FF', emoji: '💻', link: '/shop' },
+  { tag: 'Gaming Setup', title: 'Тоглоомын\nДэлгэрэнгүй дэлгүүр', sub: 'Monitor, GPU, Keyboard, Mouse', cta: 'Харах', bg: 'linear-gradient(135deg, #0d0d0d 0%, #1a0a2e 50%, #2d1b69 100%)', accent: '#00D4AA', emoji: '🎮', link: '/shop' },
+  { tag: 'Хямдрал 🔥', title: 'До 30% хямдрал\nСонгосон бараанд', sub: 'Laptop, Earbuds, Smartwatch', cta: 'Авах', bg: 'linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0f4c75 100%)', accent: '#F59E0B', emoji: '📱', link: '/shop?onSale=true' },
 ];
 
-// Scroll reveal - аюулгүй хувилбар
+const DEFAULT_PROMO_BANNERS = [
+  {
+    id: 1,
+    tag: 'Онцлох',
+    title: 'Хөгжмийн туршлагаа\nсайжруулаарай',
+    subtitle: 'AirPods, Sony, Bose — шилдэг чихэвчнүүд',
+    cta: 'Одоо авах',
+    link: '/shop?category=earbuds',
+    emoji: '🎧',
+    accent: '#00D4AA',
+    image_url: '',
+    bg: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)',
+  },
+  {
+    id: 2,
+    tag: 'Gaming',
+    title: 'Тоглоомын\nтоног төхөөрөмж',
+    subtitle: 'Mouse, Keyboard, Headset — pro setup',
+    cta: 'Харах',
+    link: '/shop?category=keyboards',
+    emoji: '🎮',
+    accent: '#6C63FF',
+    image_url: '',
+    bg: 'linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #2d1b69 100%)',
+  },
+];
+
+// Scroll reveal
 function useScrollReveal(threshold = 0.08) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // Хэрэв viewport-д байвал шууд харуулна
     const rect = el.getBoundingClientRect();
     if (rect.top < window.innerHeight) { setVisible(true); return; }
     const obs = new IntersectionObserver(
@@ -63,7 +89,6 @@ function SaleSidebar() {
 
   return (
     <div className="flex flex-col h-full">
-      {/* Header */}
       <div className="flex items-center gap-2 mb-2 px-1">
         <span className="relative flex h-2 w-2">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ background: '#EF4444' }} />
@@ -71,8 +96,6 @@ function SaleSidebar() {
         </span>
         <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Хямдрал</span>
       </div>
-
-      {/* List */}
       <div className="flex-1 space-y-0.5 overflow-y-auto scrollbar-hide">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => <div key={i} className="skeleton h-12 rounded-xl" />)
@@ -106,9 +129,7 @@ function SaleSidebar() {
               );
             })}
       </div>
-
-      <Link to="/shop?onSale=true"
-        className="mt-2 text-center text-xs font-semibold text-red-500 hover:underline py-1">
+      <Link to="/shop?onSale=true" className="mt-2 text-center text-xs font-semibold text-red-500 hover:underline py-1">
         Бүгдийг харах →
       </Link>
     </div>
@@ -128,24 +149,21 @@ function HeroBanner() {
   const b = bannerList[cur] || bannerList[0];
   if (!b) return null;
 
+  // CTA link — admin-аас тохируулсан link эсвэл /shop
+  const ctaLink = b.link || '/shop';
+
   return (
     <div className="relative overflow-hidden rounded-2xl text-white" style={{ background: b.bg, minHeight: 300 }}>
-
-      {/* Background image (if set) */}
       {b.bg_image_url && (
         <img src={b.bg_image_url} alt="" className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: 0.3, zIndex: 0 }} />
       )}
-
-      {/* Animated orbs — only when no bg image */}
       {!b.bg_image_url && (
         <>
           <div className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20" style={{ background: b.accent }} />
           <div className="orb absolute bottom-0 left-1/4 w-48 h-48 opacity-10" style={{ background: b.accent, animationDelay: '3s' }} />
         </>
       )}
-
-      {/* Grid pattern */}
       <div className="absolute inset-0 opacity-5" style={{ zIndex: 1,
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
         backgroundSize: '40px 40px'
@@ -166,14 +184,14 @@ function HeroBanner() {
           </h2>
           <p className="text-sm mb-8 leading-relaxed" style={{ color: 'rgba(255,255,255,0.55)' }}>{b.subtitle || b.sub}</p>
 
-          <Link to="/shop"
+          <Link to={ctaLink}
             className="btn-shine inline-flex items-center gap-2.5 px-7 py-3.5 rounded-xl text-sm font-bold transition-all hover:-translate-y-0.5"
             style={{ background: b.accent, boxShadow: `0 6px 24px ${b.accent}55` }}>
             {b.cta} <ArrowRight className="w-4 h-4" />
           </Link>
         </motion.div>
 
-        {/* Right side: image or emoji */}
+        {/* Right side image — томорсон */}
         <motion.div key={`right-${cur}`}
           initial={{ opacity: 0, scale: 0.7, rotate: -10 }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
@@ -181,10 +199,15 @@ function HeroBanner() {
           className="hidden md:flex items-center justify-center flex-shrink-0">
           {b.image_url ? (
             <img src={b.image_url} alt={b.title}
-              className="h-52 w-52 object-contain drop-shadow-2xl animate-float"
-              style={{ filter: 'drop-shadow(0 20px 40px rgba(0,0,0,0.4))' }} />
+              className="object-contain drop-shadow-2xl animate-float"
+              style={{
+                height: '240px',
+                width: 'auto',
+                maxWidth: '260px',
+                filter: 'drop-shadow(0 24px 48px rgba(0,0,0,0.5))',
+              }} />
           ) : (
-            <div className="text-8xl md:text-[110px] select-none animate-float">{b.emoji}</div>
+            <div className="select-none animate-float" style={{ fontSize: '120px', lineHeight: 1 }}>{b.emoji}</div>
           )}
         </motion.div>
       </div>
@@ -222,17 +245,13 @@ function DealsPanel() {
 
   return (
     <div className="card p-5 h-full relative overflow-hidden">
-      {/* Subtle gradient bg */}
       <div className="absolute top-0 right-0 w-32 h-32 rounded-full opacity-5 -translate-y-8 translate-x-8"
         style={{ background: 'var(--brand-primary)', filter: 'blur(30px)' }} />
-
       <div className="flex items-center gap-2 mb-1">
         <span className="text-lg">🔥</span>
         <h3 className="font-display font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Өнөөдрийн санал</h3>
       </div>
       <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>Хугацаат хямдрал</p>
-
-      {/* Countdown */}
       <div className="flex items-center gap-1.5 mb-5 p-2.5 rounded-xl" style={{ background: 'var(--surface-1)' }}>
         {[['Цаг', pad(time.h)], ['Мин', pad(time.m)], ['Сек', pad(time.s)]].map(([l, v], i) => (
           <div key={l} className="flex items-center gap-1.5">
@@ -247,7 +266,6 @@ function DealsPanel() {
           </div>
         ))}
       </div>
-
       <div className="space-y-1">
         {isLoading
           ? Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-14 rounded-xl" />)
@@ -356,36 +374,85 @@ function ProductsSection({ title, sub, filters, link }: {
   );
 }
 
-function PromoBanner() {
+// ── PromoBanners — Admin-аас тохируулдаг 2 banner ──────────────────────────
+function PromoBanners() {
+  const { data: settings } = useQuery({
+    queryKey: ['store-settings'],
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 60000,
+  });
+
+  const promoBanners = settings
+    ? (() => {
+      try {
+        const parsed = JSON.parse(settings.promo_banners || '[]');
+        return parsed.length === 2 ? parsed : DEFAULT_PROMO_BANNERS;
+      } catch {
+        return DEFAULT_PROMO_BANNERS;
+      }
+    })()
+    : DEFAULT_PROMO_BANNERS;
+
   return (
     <section className="py-4">
-      <div className="relative overflow-hidden rounded-2xl noise"
-        style={{ background: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)' }}>
-        {/* Orbs */}
-        <div className="orb absolute top-0 left-1/3 w-56 h-56 opacity-15" style={{ background: '#00D4AA' }} />
-        <div className="orb absolute bottom-0 right-1/4 w-40 h-40 opacity-10" style={{ background: '#6C63FF', animationDelay: '4s' }} />
+      <div className="grid md:grid-cols-2 gap-4">
+        {promoBanners.map((b: typeof DEFAULT_PROMO_BANNERS[0], idx: number) => (
+          <motion.div key={idx}
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: idx * 0.1 }}>
+            <div className="relative overflow-hidden rounded-2xl noise h-full"
+              style={{ background: b.bg, minHeight: 200 }}>
+              {/* Orbs */}
+              <div className="orb absolute top-0 left-1/3 w-40 h-40 opacity-15" style={{ background: b.accent }} />
+              <div className="orb absolute bottom-0 right-1/4 w-28 h-28 opacity-10"
+                style={{ background: b.accent, animationDelay: `${idx * 2}s` }} />
 
-        <div className="relative flex flex-col md:flex-row items-center justify-between gap-6 px-8 md:px-14 py-12">
-          <div className="text-white text-center md:text-left">
-            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full mb-4"
-              style={{ background: 'rgba(0,212,170,0.2)', color: '#00D4AA', border: '1px solid rgba(0,212,170,0.3)' }}>
-              <TrendingUp className="w-3 h-3" /> Онцлох
-            </span>
-            <h2 className="font-display font-bold text-2xl md:text-3xl leading-snug mb-3">
-              Хөгжмийн туршлагаа<br />
-              <span style={{ color: '#00D4AA' }}>сайжруулаарай</span>
-            </h2>
-            <p className="text-sm mb-7" style={{ color: 'rgba(255,255,255,0.45)' }}>
-              AirPods, Sony, Bose — шилдэг чихэвчнүүд
-            </p>
-            <Link to="/shop?category=earbuds"
-              className="btn-shine inline-flex items-center gap-2 px-7 py-3.5 rounded-xl text-sm font-bold text-white"
-              style={{ background: '#00D4AA', boxShadow: '0 6px 24px rgba(0,212,170,0.4)' }}>
-              Одоо авах <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-          <div className="text-8xl md:text-[110px] select-none animate-float">🎧</div>
-        </div>
+              <div className="relative flex items-center justify-between gap-4 px-7 py-9">
+                {/* Text */}
+                <div className="text-white flex-1">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full mb-4"
+                    style={{ background: b.accent + '22', color: b.accent, border: `1px solid ${b.accent}40` }}>
+                    <TrendingUp className="w-3 h-3" /> {b.tag}
+                  </span>
+                  <h2 className="font-display font-bold text-xl md:text-2xl leading-snug mb-3 whitespace-pre-line">
+                    {b.title}
+                  </h2>
+                  <p className="text-sm mb-6" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                    {b.subtitle}
+                  </p>
+                  <Link to={b.link || '/shop'}
+                    className="btn-shine inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold text-white"
+                    style={{ background: b.accent, boxShadow: `0 6px 24px ${b.accent}45` }}>
+                    {b.cta} <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </div>
+
+                {/* Image or emoji — томорсон */}
+                <div className="flex-shrink-0 flex items-center justify-center">
+                  {b.image_url ? (
+                    <img
+                      src={b.image_url}
+                      alt={b.title}
+                      className="animate-float object-contain"
+                      style={{
+                        height: '140px',
+                        width: 'auto',
+                        maxWidth: '160px',
+                        filter: 'drop-shadow(0 16px 32px rgba(0,0,0,0.45))',
+                      }}
+                    />
+                  ) : (
+                    <div className="select-none animate-float" style={{ fontSize: '90px', lineHeight: 1 }}>
+                      {b.emoji}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
       </div>
       <div className="mt-8 h-px" style={{ background: 'linear-gradient(to right, transparent, var(--border), transparent)' }} />
     </section>
@@ -403,7 +470,10 @@ function TrustSection() {
     { icon: 'zap', title: 'Жинхэнэ бараа', desc: '100% баталгаат бүтээгдэхүүн', color: '#EF4444' },
   ];
 
-  const items = settings ? (() => { try { const parsed = JSON.parse(settings.trust_items || '[]'); return parsed.length > 0 ? parsed : defaultItems; } catch { return defaultItems; } })() : defaultItems;
+  const items = settings ? (() => {
+    try { const p = JSON.parse(settings.trust_items || '[]'); return p.length > 0 ? p : defaultItems; }
+    catch { return defaultItems; }
+  })() : defaultItems;
 
   return (
     <section className="py-10">
@@ -432,8 +502,6 @@ function TrustSection() {
 }
 
 export default function HomePage() {
-  const { data: cats } = useCategories();
-
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 page-content">
 
@@ -441,21 +509,20 @@ export default function HomePage() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
         className="grid md:grid-cols-12 gap-4 mb-8">
-
-        {/* Sale products sidebar */}
         <div className="hidden md:flex flex-col md:col-span-2 border-r pr-3 min-h-0"
           style={{ borderColor: 'var(--border)' }}>
           <SaleSidebar />
         </div>
-
         <div className="md:col-span-7"><HeroBanner /></div>
         <div className="md:col-span-3"><DealsPanel /></div>
       </motion.div>
 
-      {/* Sections - always visible */}
       <CategoriesRow />
       <ProductsSection title="Онцлох бүтээгдэхүүн" sub="Шилдэг сонголт" />
-      <PromoBanner />
+
+      {/* Динамик 2 promo banner */}
+      <PromoBanners />
+
       <RevealSection>
         <ProductsSection title="Эрэлттэй бүтээгдэхүүн" sub="Энэ сарын" filters={{ sortBy: 'created', sortDir: 'asc' }} />
       </RevealSection>

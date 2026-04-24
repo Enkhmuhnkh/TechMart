@@ -3,8 +3,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../../api';
 import { imgUrl, formatPrice } from '../../../utils';
 import {
-  Save, Upload, X, Check, Package, Star, Image, Plus, Trash2,
-  Megaphone, Award, ChevronUp, ChevronDown, Store, Palette, Search
+  Save, Upload, X, Check, Package, Image, Plus, Trash2,
+  Megaphone, Award, ChevronUp, ChevronDown, Store, Search,
+  Link as LinkIcon, TrendingUp
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -12,13 +13,33 @@ import toast from 'react-hot-toast';
 interface Banner {
   id: number; tag: string; title: string; subtitle: string;
   cta: string; emoji: string; accent: string;
-  image_url: string;      // баруун тал — бүтээгдэхүүний зураг
-  bg_image_url: string;   // арын дэвсгэр зураг
+  image_url: string;
+  bg_image_url: string;
+  bg: string;
+  link: string;   // ← CTA товчны очих хуудас
+}
+
+interface PromoBannerItem {
+  id: number;
+  tag: string;
+  title: string;
+  subtitle: string;
+  cta: string;
+  link: string;
+  emoji: string;
+  accent: string;
+  image_url: string;
   bg: string;
 }
+
 interface TrustItem {
   icon: string; title: string; desc: string; color: string;
 }
+
+const DEFAULT_PROMO: PromoBannerItem[] = [
+  { id: 1, tag: 'Онцлох', title: 'Хөгжмийн туршлагаа\nсайжруулаарай', subtitle: 'AirPods, Sony, Bose — шилдэг чихэвчнүүд', cta: 'Одоо авах', link: '/shop?category=earbuds', emoji: '🎧', accent: '#00D4AA', image_url: '', bg: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)' },
+  { id: 2, tag: 'Gaming', title: 'Тоглоомын\nтоног төхөөрөмж', subtitle: 'Mouse, Keyboard, Headset — pro setup', cta: 'Харах', link: '/shop?category=keyboards', emoji: '🎮', accent: '#6C63FF', image_url: '', bg: 'linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #2d1b69 100%)' },
+];
 
 const ICON_OPTIONS = [
   { value: 'truck', label: '🚚 Хүргэлт' },
@@ -32,8 +53,15 @@ const ICON_OPTIONS = [
 ];
 const EMOJI_OPTIONS = ['💻', '📱', '🎮', '🖥️', '🎧', '⌚', '📟', '⌨️', '🖱️', '💾', '🔥', '✨', '🚀', '🌟'];
 const ACCENT_COLORS = ['#6C63FF', '#00D4AA', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#10B981', '#F97316'];
+const BG_PRESETS = [
+  { label: 'Хар цэнхэр', value: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)' },
+  { label: 'Ногоон харанхуй', value: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)' },
+  { label: 'Тоглоомын', value: 'linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #2d1b69 100%)' },
+  { label: 'Далайн', value: 'linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0f4c75 100%)' },
+  { label: 'Нил ягаан', value: 'linear-gradient(135deg, #1a0a2e 0%, #2d1b69 50%, #4c1d95 100%)' },
+  { label: 'Бараан ногоон', value: 'linear-gradient(135deg, #0d1a0d 0%, #1a2e1a 50%, #0f4c1a 100%)' },
+];
 
-// ─── Section header ────────────────────────────────────────────────────────────
 function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
   return (
     <div className="card p-6">
@@ -45,36 +73,82 @@ function SectionCard({ icon, title, children }: { icon: React.ReactNode; title: 
   );
 }
 
-// ─── Main component ────────────────────────────────────────────────────────────
+// ── Link picker — категори болон хуудас сонгох ─────────────────────────────
+function LinkPicker({ value, onChange, categories }: {
+  value: string;
+  onChange: (v: string) => void;
+  categories: any[];
+}) {
+  const PRESETS = [
+    { label: '🏪 Бүх дэлгүүр', value: '/shop' },
+    { label: '🔥 Хямдралтай', value: '/shop?onSale=true' },
+    { label: '✨ Шинэ бараа', value: '/shop?sortBy=created&sortDir=desc' },
+    ...categories.map((c: any) => ({
+      label: `${c.icon || '📦'} ${c.name}`,
+      value: `/shop?category=${c.slug}`,
+    })),
+  ];
+
+  const isPreset = PRESETS.some(p => p.value === value);
+
+  return (
+    <div className="space-y-2">
+      {/* Quick select */}
+      <div className="flex flex-wrap gap-1.5">
+        {PRESETS.map(p => (
+          <button
+            key={p.value}
+            onClick={() => onChange(p.value)}
+            className="text-xs px-2.5 py-1.5 rounded-lg border transition-all"
+            style={{
+              borderColor: value === p.value ? 'var(--brand-primary)' : 'var(--border)',
+              background: value === p.value ? 'rgba(108,99,255,0.12)' : 'var(--surface-1)',
+              color: value === p.value ? 'var(--brand-primary)' : 'var(--text-secondary)',
+              fontWeight: value === p.value ? 700 : 400,
+            }}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {/* Custom input */}
+      <div className="flex items-center gap-2">
+        <LinkIcon className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--text-tertiary)' }} />
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder="/shop?category=phones"
+          className="input text-xs flex-1"
+        />
+      </div>
+    </div>
+  );
+}
+
+// ── Main ────────────────────────────────────────────────────────────────────
 export default function AdminSettings() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'sidebar' | 'trust' | 'announce'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'promo' | 'sidebar' | 'trust' | 'announce'>('store');
 
-  // Store info — store_logo нэмэгдсэн
   const [storeInfo, setStoreInfo] = useState({
     store_name: 'TechMart',
     store_phone: '',
     store_email: '',
     announcement: '',
-    store_logo: '',   // ← лого (base64 эсвэл Cloudinary URL)
+    store_logo: '',
   });
 
-  // Banners
   const [banners, setBanners] = useState<Banner[]>([]);
   const [editBannerId, setEditBannerId] = useState<number | null>(null);
-
-  // Trust items
+  const [promoBanners, setPromoBanners] = useState<PromoBannerItem[]>(DEFAULT_PROMO);
+  const [editPromoId, setEditPromoId] = useState<number | null>(null);
   const [trustItems, setTrustItems] = useState<TrustItem[]>([]);
-
-  // Sale products
   const [saleSearch, setSaleSearch] = useState('');
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
 
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const logoFileRef = useRef<HTMLInputElement | null>(null);
 
-  // Load settings
   const { data: settings, isLoading } = useQuery({
     queryKey: ['store-settings'],
     queryFn: () => adminApi.getSettings(),
@@ -84,6 +158,13 @@ export default function AdminSettings() {
     queryKey: ['products-for-settings'],
     queryFn: () => adminApi.listProducts({ limit: 200 }),
   });
+
+  // Категори жагсаалт — link picker-т хэрэглэнэ
+  const { data: categoriesData } = useQuery({
+    queryKey: ['categories-for-settings'],
+    queryFn: () => adminApi.listCategories(),
+  });
+  const categories = categoriesData || [];
 
   useEffect(() => {
     if (!settings) return;
@@ -97,12 +178,15 @@ export default function AdminSettings() {
     try { setBanners(JSON.parse(settings.hero_banners || '[]')); } catch { setBanners([]); }
     try { setTrustItems(JSON.parse(settings.trust_items || '[]')); } catch { setTrustItems([]); }
     try { setSelectedSaleIds(JSON.parse(settings.sidebar_sale_product_ids || '[]')); } catch { setSelectedSaleIds([]); }
+    try {
+      const pb = JSON.parse(settings.promo_banners || '[]');
+      setPromoBanners(pb.length === 2 ? pb : DEFAULT_PROMO);
+    } catch { setPromoBanners(DEFAULT_PROMO); }
   }, [settings]);
 
   const saveMutation = useMutation({
     mutationFn: (data: Record<string, string>) => adminApi.saveSettings(data),
     onSuccess: () => {
-      // store-settings cache шинэчлэх → Navbar автоматаар шинэчлэгдэнэ
       qc.invalidateQueries({ queryKey: ['store-settings'] });
       qc.invalidateQueries({ queryKey: ['sale-sidebar'] });
       toast.success('Хадгалагдлаа ✓');
@@ -116,68 +200,59 @@ export default function AdminSettings() {
     saveMutation.mutate({
       ...storeInfo,
       hero_banners: JSON.stringify(banners),
+      promo_banners: JSON.stringify(promoBanners),
       trust_items: JSON.stringify(trustItems),
       sidebar_sale_product_ids: JSON.stringify(selectedSaleIds),
     });
   };
 
-  // ── Лого upload ──────────────────────────────────────────────────────────────
+  // Лого
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    // Хэмжээ шалгах (2MB хүртэл)
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error('Зургийн хэмжээ 2MB-аас бага байх ёстой');
-      return;
-    }
+    if (file.size > 2 * 1024 * 1024) { toast.error('Зургийн хэмжээ 2MB-аас бага байх ёстой'); return; }
     const reader = new FileReader();
-    reader.onload = () => {
-      setStoreInfo(s => ({ ...s, store_logo: reader.result as string }));
-    };
+    reader.onload = () => setStoreInfo(s => ({ ...s, store_logo: reader.result as string }));
     reader.readAsDataURL(file);
   };
 
-  // Banner helpers
+  // Hero banner helpers
   const addBanner = () => {
     if (banners.length >= 3) { toast.error('Хамгийн ихдээ 3 banner'); return; }
-    const newBanner: Banner = { id: Date.now(), tag: 'Шинэ banner', title: 'Гарчиг', subtitle: 'Дэд гарчиг', cta: 'Үзэх', emoji: '🚀', accent: '#6C63FF', image_url: '', bg_image_url: '', bg: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' };
-    setBanners(b => [...b, newBanner]);
-    setEditBannerId(newBanner.id);
+    const nb: Banner = { id: Date.now(), tag: 'Шинэ banner', title: 'Гарчиг', subtitle: 'Дэд гарчиг', cta: 'Үзэх', emoji: '🚀', accent: '#6C63FF', image_url: '', bg_image_url: '', bg: BG_PRESETS[0].value, link: '/shop' };
+    setBanners(b => [...b, nb]);
+    setEditBannerId(nb.id);
   };
-  const updateBanner = (id: number, field: keyof Banner, value: string) => {
+  const updateBanner = (id: number, field: keyof Banner, value: string) =>
     setBanners(b => b.map(ban => ban.id === id ? { ...ban, [field]: value } : ban));
-  };
-  const removeBanner = (id: number) => {
-    setBanners(b => b.filter(ban => ban.id !== id));
-    if (editBannerId === id) setEditBannerId(null);
-  };
+  const removeBanner = (id: number) => { setBanners(b => b.filter(ban => ban.id !== id)); if (editBannerId === id) setEditBannerId(null); };
   const moveBanner = (idx: number, dir: -1 | 1) => {
-    const arr = [...banners];
-    const target = idx + dir;
-    if (target < 0 || target >= arr.length) return;
-    [arr[idx], arr[target]] = [arr[target], arr[idx]];
-    setBanners(arr);
+    const arr = [...banners]; const t = idx + dir;
+    if (t < 0 || t >= arr.length) return;
+    [arr[idx], arr[t]] = [arr[t], arr[idx]]; setBanners(arr);
   };
-
   const handleBannerImage = (bannerId: number, field: 'image_url' | 'bg_image_url', e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = () => updateBanner(bannerId, field, reader.result as string);
     reader.readAsDataURL(file);
   };
 
+  // Promo banner helpers
+  const updatePromo = (id: number, field: keyof PromoBannerItem, value: string) =>
+    setPromoBanners(pb => pb.map(b => b.id === id ? { ...b, [field]: value } : b));
+  const handlePromoImage = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => updatePromo(id, 'image_url', reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   // Trust helpers
-  const addTrustItem = () => {
-    if (trustItems.length >= 4) { toast.error('Хамгийн ихдээ 4 item'); return; }
-    setTrustItems(t => [...t, { icon: 'star', title: 'Шинэ давуу тал', desc: 'Тайлбар', color: '#6C63FF' }]);
-  };
-  const updateTrust = (idx: number, field: keyof TrustItem, val: string) => {
-    setTrustItems(t => t.map((item, i) => i === idx ? { ...item, [field]: val } : item));
-  };
+  const addTrustItem = () => { if (trustItems.length >= 4) { toast.error('Хамгийн ихдээ 4 item'); return; } setTrustItems(t => [...t, { icon: 'star', title: 'Шинэ давуу тал', desc: 'Тайлбар', color: '#6C63FF' }]); };
+  const updateTrust = (idx: number, field: keyof TrustItem, val: string) => setTrustItems(t => t.map((item, i) => i === idx ? { ...item, [field]: val } : item));
   const removeTrust = (idx: number) => setTrustItems(t => t.filter((_, i) => i !== idx));
 
-  // Sale product helpers
   const saleProducts = (allProducts?.data || []).filter((p: any) => p.sale_price);
   const filteredSale = saleProducts.filter((p: any) =>
     p.name.toLowerCase().includes(saleSearch.toLowerCase()) ||
@@ -193,7 +268,8 @@ export default function AdminSettings() {
 
   const TABS = [
     { id: 'store', icon: <Store className="w-4 h-4" />, label: 'Дэлгүүр' },
-    { id: 'banners', icon: <Image className="w-4 h-4" />, label: 'Banner' },
+    { id: 'banners', icon: <Image className="w-4 h-4" />, label: 'Hero Banner' },
+    { id: 'promo', icon: <TrendingUp className="w-4 h-4" />, label: 'Promo Banner' },
     { id: 'sidebar', icon: <Package className="w-4 h-4" />, label: 'Хямдрал' },
     { id: 'trust', icon: <Award className="w-4 h-4" />, label: 'Давуу тал' },
     { id: 'announce', icon: <Megaphone className="w-4 h-4" />, label: 'Зар' },
@@ -205,7 +281,6 @@ export default function AdminSettings() {
 
   return (
     <div className="space-y-5 max-w-4xl">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>⚙️ Тохиргоо</h1>
@@ -234,88 +309,46 @@ export default function AdminSettings() {
       {activeTab === 'store' && (
         <SectionCard icon={<Store className="w-4 h-4 text-brand-primary" />} title="Дэлгүүрийн мэдээлэл">
           <div className="space-y-5">
-
-            {/* ── Лого upload ── */}
             <div>
               <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
                 🖼️ Дэлгүүрийн лого
-                <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(Header дээр харагдана — PNG, SVG санал болгоно)</span>
+                <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(Header дээр харагдана)</span>
               </label>
-
               <div className="flex items-center gap-4">
-                {/* Лого preview */}
-                <div className="w-16 h-16 rounded-xl border-2 flex items-center justify-center flex-shrink-0 overflow-hidden transition-all"
+                <div className="w-16 h-16 rounded-xl border-2 flex items-center justify-center flex-shrink-0 overflow-hidden"
                   style={{ borderColor: storeInfo.store_logo ? 'var(--brand-primary)' : 'var(--border)', background: 'var(--surface-1)' }}>
-                  {storeInfo.store_logo ? (
-                    <img src={storeInfo.store_logo} alt="Logo preview" className="w-full h-full object-contain p-1" />
-                  ) : (
-                    <div className="w-10 h-10 bg-brand-primary rounded-lg flex items-center justify-center">
-                      <span className="text-white font-bold text-lg">
-                        {storeInfo.store_name[0]?.toUpperCase() || 'T'}
-                      </span>
-                    </div>
-                  )}
+                  {storeInfo.store_logo
+                    ? <img src={storeInfo.store_logo} alt="Logo" className="w-full h-full object-contain p-1" />
+                    : <div className="w-10 h-10 bg-brand-primary rounded-lg flex items-center justify-center">
+                        <span className="text-white font-bold text-lg">{storeInfo.store_name[0]?.toUpperCase() || 'T'}</span>
+                      </div>}
                 </div>
-
-                {/* Buttons */}
                 <div className="flex flex-col gap-2">
-                  <input
-                    ref={logoFileRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                    onChange={handleLogoUpload}
-                    className="hidden"
-                  />
-                  <button
-                    onClick={() => logoFileRef.current?.click()}
-                    className="btn-ghost border rounded-xl px-4 py-2 text-xs flex items-center gap-2"
-                    style={{ borderColor: 'var(--border)' }}>
-                    <Upload className="w-3.5 h-3.5" />
-                    {storeInfo.store_logo ? 'Лого солих' : 'Лого оруулах'}
+                  <input ref={logoFileRef} type="file" accept="image/png,image/jpeg,image/svg+xml,image/webp" onChange={handleLogoUpload} className="hidden" />
+                  <button onClick={() => logoFileRef.current?.click()} className="btn-ghost border rounded-xl px-4 py-2 text-xs flex items-center gap-2" style={{ borderColor: 'var(--border)' }}>
+                    <Upload className="w-3.5 h-3.5" /> {storeInfo.store_logo ? 'Лого солих' : 'Лого оруулах'}
                   </button>
                   {storeInfo.store_logo && (
-                    <button
-                      onClick={() => setStoreInfo(s => ({ ...s, store_logo: '' }))}
-                      className="text-xs text-red-500 flex items-center gap-1.5 hover:underline">
-                      <X className="w-3 h-3" /> Лого устгах
+                    <button onClick={() => setStoreInfo(s => ({ ...s, store_logo: '' }))} className="text-xs text-red-500 flex items-center gap-1.5 hover:underline">
+                      <X className="w-3 h-3" /> Устгах
                     </button>
                   )}
-                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                    Санал болгох: 64×64px, PNG/SVG, 2MB хүртэл
-                  </p>
+                  <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>PNG/SVG, 2MB хүртэл</p>
                 </div>
               </div>
-
-              {/* Live preview Navbar-д хэрхэн харагдах */}
-              <div className="mt-3 p-3 rounded-xl flex items-center gap-2 border"
-                style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}>
-                <span className="text-xs font-semibold mr-1" style={{ color: 'var(--text-tertiary)' }}>Navbar preview:</span>
-                {storeInfo.store_logo ? (
-                  <img src={storeInfo.store_logo} alt="" className="w-6 h-6 rounded object-contain" style={{ background: 'var(--surface-2)' }} />
-                ) : (
-                  <div className="w-6 h-6 bg-brand-primary rounded flex items-center justify-center">
-                    <span className="text-white font-bold text-[10px]">{storeInfo.store_name[0]?.toUpperCase() || 'T'}</span>
-                  </div>
-                )}
+              <div className="mt-3 p-3 rounded-xl flex items-center gap-2 border" style={{ background: 'var(--surface-1)', borderColor: 'var(--border)' }}>
+                <span className="text-xs font-semibold mr-1" style={{ color: 'var(--text-tertiary)' }}>Navbar:</span>
+                {storeInfo.store_logo
+                  ? <img src={storeInfo.store_logo} alt="" className="w-6 h-6 rounded object-contain" style={{ background: 'var(--surface-2)' }} />
+                  : <div className="w-6 h-6 bg-brand-primary rounded flex items-center justify-center"><span className="text-white font-bold text-[10px]">{storeInfo.store_name[0]?.toUpperCase() || 'T'}</span></div>}
                 <span className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{storeInfo.store_name || 'TechMart'}</span>
               </div>
             </div>
-
             <div className="border-t" style={{ borderColor: 'var(--border)' }} />
-
-            {/* Дэлгүүрийн нэр болон холбоо барих */}
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
-                  Дэлгүүрийн нэр
-                  <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(Header дээр харагдана)</span>
-                </label>
-                <input
-                  value={storeInfo.store_name}
-                  onChange={e => setStoreInfo(s => ({ ...s, store_name: e.target.value }))}
-                  className="input text-sm"
-                  placeholder="TechMart"
-                />
+                <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Дэлгүүрийн нэр</label>
+                <input value={storeInfo.store_name} onChange={e => setStoreInfo(s => ({ ...s, store_name: e.target.value }))} className="input text-sm" placeholder="TechMart" />
               </div>
               <div>
                 <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Утас</label>
@@ -334,11 +367,9 @@ export default function AdminSettings() {
       {activeTab === 'banners' && (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-              Home хуудасны slider banner-уудыг удирдах ({banners.length}/3)
-            </p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Slider banner ({banners.length}/3)</p>
             <button onClick={addBanner} className="btn-primary btn-sm flex items-center gap-1.5">
-              <Plus className="w-3.5 h-3.5" /> Banner нэмэх
+              <Plus className="w-3.5 h-3.5" /> Нэмэх
             </button>
           </div>
 
@@ -359,9 +390,7 @@ export default function AdminSettings() {
                       className="btn-ghost px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ color: 'var(--brand-primary)' }}>
                       {editBannerId === banner.id ? 'Хаах' : 'Засах'}
                     </button>
-                    <button onClick={() => removeBanner(banner.id)} className="btn-ghost p-1.5 rounded-lg text-red-500 hover:bg-red-50">
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    <button onClick={() => removeBanner(banner.id)} className="btn-ghost p-1.5 rounded-lg text-red-500"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
 
@@ -369,23 +398,36 @@ export default function AdminSettings() {
                   <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Tag (жижиг label)</label>
-                        <input value={banner.tag} onChange={e => updateBanner(banner.id, 'tag', e.target.value)} className="input text-sm" placeholder="Шинэ ирэлт" />
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Tag</label>
+                        <input value={banner.tag} onChange={e => updateBanner(banner.id, 'tag', e.target.value)} className="input text-sm" />
                       </div>
                       <div>
                         <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Товчлуурын текст</label>
-                        <input value={banner.cta} onChange={e => updateBanner(banner.id, 'cta', e.target.value)} className="input text-sm" placeholder="Үзэх" />
+                        <input value={banner.cta} onChange={e => updateBanner(banner.id, 'cta', e.target.value)} className="input text-sm" />
                       </div>
                       <div className="sm:col-span-2">
-                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Гарчиг (мөр эхлүүлэхийн тулд \n ашиглана)</label>
-                        <input value={banner.title} onChange={e => updateBanner(banner.id, 'title', e.target.value)} className="input text-sm" placeholder="Хамгийн сүүлийн\nTech гаджетууд" />
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Гарчиг (\n = шинэ мөр)</label>
+                        <input value={banner.title} onChange={e => updateBanner(banner.id, 'title', e.target.value)} className="input text-sm" />
                       </div>
                       <div className="sm:col-span-2">
                         <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Дэд гарчиг</label>
-                        <input value={banner.subtitle} onChange={e => updateBanner(banner.id, 'subtitle', e.target.value)} className="input text-sm" placeholder="Laptop, Phone, Monitor болон бусад" />
+                        <input value={banner.subtitle} onChange={e => updateBanner(banner.id, 'subtitle', e.target.value)} className="input text-sm" />
                       </div>
                     </div>
 
+                    {/* ── CTA Link picker ── */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        <LinkIcon className="w-3.5 h-3.5" /> "Үзэх" товч очих хуудас
+                      </label>
+                      <LinkPicker
+                        value={banner.link || '/shop'}
+                        onChange={v => updateBanner(banner.id, 'link', v)}
+                        categories={categories}
+                      />
+                    </div>
+
+                    {/* Emoji */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Emoji</label>
                       <div className="flex flex-wrap gap-2">
@@ -399,6 +441,7 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
+                    {/* Accent */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Accent өнгө</label>
                       <div className="flex gap-2 flex-wrap">
@@ -410,56 +453,57 @@ export default function AdminSettings() {
                       </div>
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
-                          📦 Баруун талын зураг
-                          <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(бүтээгдэхүүн)</span>
-                        </label>
-                        <input ref={el => { fileRefs.current[`banner-img-${banner.id}`] = el; }} type="file" accept="image/*"
-                          onChange={e => handleBannerImage(banner.id, 'image_url', e)} className="hidden" />
-                        <div className="flex flex-col gap-2">
-                          <button onClick={() => fileRefs.current[`banner-img-${banner.id}`]?.click()}
-                            className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2 w-full" style={{ borderColor: 'var(--border)' }}>
-                            <Upload className="w-3.5 h-3.5" /> Зураг оруулах
+                    {/* Background preset */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Арын дэвсгэрийн өнгө</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {BG_PRESETS.map(p => (
+                          <button key={p.value} onClick={() => updateBanner(banner.id, 'bg', p.value)}
+                            className="h-10 rounded-xl border-2 text-xs font-semibold text-white transition-all"
+                            style={{ background: p.value, borderColor: banner.bg === p.value ? 'white' : 'transparent' }}>
+                            {banner.bg === p.value ? '✓ ' : ''}{p.label}
                           </button>
-                          {banner.image_url && (
-                            <div className="flex items-center gap-2">
-                              <img src={banner.image_url} className="w-14 h-14 rounded-xl object-contain" style={{ background: 'var(--surface-2)' }} alt="" />
-                              <button onClick={() => updateBanner(banner.id, 'image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
-                            </div>
-                          )}
-                          {!banner.image_url && (
-                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Зураггүй бол emoji харагдана</p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
-                          🖼️ Арын дэвсгэр зураг
-                          <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>(background)</span>
-                        </label>
-                        <input ref={el => { fileRefs.current[`banner-bg-${banner.id}`] = el; }} type="file" accept="image/*"
-                          onChange={e => handleBannerImage(banner.id, 'bg_image_url', e)} className="hidden" />
-                        <div className="flex flex-col gap-2">
-                          <button onClick={() => fileRefs.current[`banner-bg-${banner.id}`]?.click()}
-                            className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2 w-full" style={{ borderColor: 'var(--border)' }}>
-                            <Upload className="w-3.5 h-3.5" /> Зураг оруулах
-                          </button>
-                          {banner.bg_image_url && (
-                            <div className="flex items-center gap-2">
-                              <img src={banner.bg_image_url} className="w-14 h-10 rounded-xl object-cover" alt="" />
-                              <button onClick={() => updateBanner(banner.id, 'bg_image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
-                            </div>
-                          )}
-                          {!banner.bg_image_url && (
-                            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Зураггүй бол gradient харагдана</p>
-                          )}
-                        </div>
+                        ))}
                       </div>
                     </div>
 
+                    {/* Images */}
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>📦 Баруун талын зураг</label>
+                        <input ref={el => { fileRefs.current[`banner-img-${banner.id}`] = el; }} type="file" accept="image/*"
+                          onChange={e => handleBannerImage(banner.id, 'image_url', e)} className="hidden" />
+                        <button onClick={() => fileRefs.current[`banner-img-${banner.id}`]?.click()}
+                          className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2 w-full" style={{ borderColor: 'var(--border)' }}>
+                          <Upload className="w-3.5 h-3.5" /> Зураг оруулах
+                        </button>
+                        {banner.image_url && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <img src={banner.image_url} className="w-14 h-14 rounded-xl object-contain" style={{ background: 'var(--surface-2)' }} alt="" />
+                            <button onClick={() => updateBanner(banner.id, 'image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                          </div>
+                        )}
+                        {!banner.image_url && <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>Зураггүй бол emoji харагдана</p>}
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>🖼️ Арын дэвсгэр зураг</label>
+                        <input ref={el => { fileRefs.current[`banner-bg-${banner.id}`] = el; }} type="file" accept="image/*"
+                          onChange={e => handleBannerImage(banner.id, 'bg_image_url', e)} className="hidden" />
+                        <button onClick={() => fileRefs.current[`banner-bg-${banner.id}`]?.click()}
+                          className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2 w-full" style={{ borderColor: 'var(--border)' }}>
+                          <Upload className="w-3.5 h-3.5" /> Зураг оруулах
+                        </button>
+                        {banner.bg_image_url && (
+                          <div className="flex items-center gap-2 mt-2">
+                            <img src={banner.bg_image_url} className="w-14 h-10 rounded-xl object-cover" alt="" />
+                            <button onClick={() => updateBanner(banner.id, 'bg_image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                          </div>
+                        )}
+                        {!banner.bg_image_url && <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>Зураггүй бол gradient</p>}
+                      </div>
+                    </div>
+
+                    {/* Preview */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Урьдчилан харах</label>
                       <div className="rounded-xl overflow-hidden relative" style={{ background: banner.bg, minHeight: 120 }}>
@@ -470,13 +514,12 @@ export default function AdminSettings() {
                             <h3 className="text-white font-bold text-lg mt-2 whitespace-pre-line leading-snug">{banner.title}</h3>
                             <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>{banner.subtitle}</p>
                             <span className="inline-block mt-3 px-4 py-2 rounded-lg text-xs font-bold text-white" style={{ background: banner.accent }}>
-                              {banner.cta} →
+                              {banner.cta} → <span className="opacity-60 ml-1 text-[10px]">{banner.link || '/shop'}</span>
                             </span>
                           </div>
                           {banner.image_url
                             ? <img src={banner.image_url} alt="" className="h-20 w-20 object-contain" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
-                            : <div className="text-5xl">{banner.emoji}</div>
-                          }
+                            : <div className="text-5xl">{banner.emoji}</div>}
                         </div>
                       </div>
                     </div>
@@ -488,18 +531,163 @@ export default function AdminSettings() {
 
           {banners.length === 0 && (
             <div className="text-center py-12 rounded-2xl" style={{ background: 'var(--surface-1)' }}>
-              <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Banner байхгүй байна</p>
-              <button onClick={addBanner} className="btn-primary btn-sm">+ Banner нэмэх</button>
+              <p className="text-sm mb-3" style={{ color: 'var(--text-secondary)' }}>Banner байхгүй</p>
+              <button onClick={addBanner} className="btn-primary btn-sm">+ Нэмэх</button>
             </div>
           )}
         </div>
       )}
 
-      {/* ── Хямдралтай sidebar бараа ── */}
+      {/* ── Promo Banners (2 banner) ── */}
+      {activeTab === 'promo' && (
+        <div className="space-y-4">
+          <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+            Home хуудасны "Онцлох бүтээгдэхүүн" хэсгийн доор харагдах 2 banner. Хоёулаа тусдаа тохируулдаг.
+          </p>
+
+          {promoBanners.map((b, idx) => (
+            <div key={b.id} className="card overflow-hidden">
+              <div className="h-2" style={{ background: b.accent }} />
+              <div className="p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">{b.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--text-primary)' }}>
+                      {idx + 1}-р banner: {b.tag}
+                    </p>
+                    <p className="text-xs truncate" style={{ color: 'var(--text-secondary)' }}>{b.title.replace('\n', ' ')}</p>
+                  </div>
+                  <button onClick={() => setEditPromoId(editPromoId === b.id ? null : b.id)}
+                    className="btn-ghost px-3 py-1.5 rounded-lg text-xs font-semibold" style={{ color: 'var(--brand-primary)' }}>
+                    {editPromoId === b.id ? 'Хаах' : 'Засах'}
+                  </button>
+                </div>
+
+                {editPromoId === b.id && (
+                  <div className="mt-4 pt-4 border-t space-y-4" style={{ borderColor: 'var(--border)' }}>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Tag</label>
+                        <input value={b.tag} onChange={e => updatePromo(b.id, 'tag', e.target.value)} className="input text-sm" />
+                      </div>
+                      <div>
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Товчлуурын текст</label>
+                        <input value={b.cta} onChange={e => updatePromo(b.id, 'cta', e.target.value)} className="input text-sm" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Гарчиг (\n = шинэ мөр)</label>
+                        <input value={b.title} onChange={e => updatePromo(b.id, 'title', e.target.value)} className="input text-sm" />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Дэд гарчиг</label>
+                        <input value={b.subtitle} onChange={e => updatePromo(b.id, 'subtitle', e.target.value)} className="input text-sm" />
+                      </div>
+                    </div>
+
+                    {/* Link picker */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                        <LinkIcon className="w-3.5 h-3.5" /> Товчны очих хуудас
+                      </label>
+                      <LinkPicker
+                        value={b.link || '/shop'}
+                        onChange={v => updatePromo(b.id, 'link', v)}
+                        categories={categories}
+                      />
+                    </div>
+
+                    {/* Emoji */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Emoji</label>
+                      <div className="flex flex-wrap gap-2">
+                        {EMOJI_OPTIONS.map(e => (
+                          <button key={e} onClick={() => updatePromo(b.id, 'emoji', e)}
+                            className="w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all"
+                            style={{ background: b.emoji === e ? 'var(--brand-primary)' : 'var(--surface-2)', transform: b.emoji === e ? 'scale(1.15)' : 'scale(1)' }}>
+                            {e}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Accent */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Accent өнгө</label>
+                      <div className="flex gap-2 flex-wrap">
+                        {ACCENT_COLORS.map(c => (
+                          <button key={c} onClick={() => updatePromo(b.id, 'accent', c)}
+                            className="w-8 h-8 rounded-lg transition-all border-2"
+                            style={{ background: c, borderColor: b.accent === c ? 'white' : 'transparent', transform: b.accent === c ? 'scale(1.2)' : 'scale(1)' }} />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Background */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Арын дэвсгэр</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {BG_PRESETS.map(p => (
+                          <button key={p.value} onClick={() => updatePromo(b.id, 'bg', p.value)}
+                            className="h-10 rounded-xl border-2 text-xs font-semibold text-white transition-all"
+                            style={{ background: p.value, borderColor: b.bg === p.value ? 'white' : 'transparent' }}>
+                            {b.bg === p.value ? '✓ ' : ''}{p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Image upload */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>
+                        📦 Зураг (баруун тал)
+                        <span className="ml-1 font-normal" style={{ color: 'var(--text-tertiary)' }}>— зураггүй бол emoji харагдана</span>
+                      </label>
+                      <input ref={el => { fileRefs.current[`promo-${b.id}`] = el; }} type="file" accept="image/*"
+                        onChange={e => handlePromoImage(b.id, e)} className="hidden" />
+                      <button onClick={() => fileRefs.current[`promo-${b.id}`]?.click()}
+                        className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2" style={{ borderColor: 'var(--border)' }}>
+                        <Upload className="w-3.5 h-3.5" /> Зураг оруулах
+                      </button>
+                      {b.image_url && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <img src={b.image_url} className="w-16 h-16 rounded-xl object-contain" style={{ background: 'var(--surface-2)' }} alt="" />
+                          <button onClick={() => updatePromo(b.id, 'image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Preview */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Урьдчилан харах</label>
+                      <div className="rounded-xl overflow-hidden relative" style={{ background: b.bg, minHeight: 110 }}>
+                        <div className="relative p-5 flex items-center justify-between" style={{ zIndex: 1 }}>
+                          <div>
+                            <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: b.accent + '33', color: b.accent }}>↗ {b.tag}</span>
+                            <h3 className="text-white font-bold text-base mt-2 whitespace-pre-line leading-snug">{b.title}</h3>
+                            <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>{b.subtitle}</p>
+                            <span className="inline-block mt-3 px-4 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: b.accent }}>
+                              {b.cta} → <span className="opacity-60 text-[10px]">{b.link}</span>
+                            </span>
+                          </div>
+                          {b.image_url
+                            ? <img src={b.image_url} alt="" className="h-16 w-16 object-contain" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+                            : <div className="text-5xl">{b.emoji}</div>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Хямдралтай sidebar ── */}
       {activeTab === 'sidebar' && (
         <SectionCard icon={<Package className="w-4 h-4 text-red-500" />} title="Хямдралтай sidebar бараа">
           <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-            Home хуудасны зүүн талд харагдах бараануудыг сонго (хамгийн ихдээ 10). Сонгоогүй бол автоматаар харуулна.
+            Home хуудасны зүүн талд харагдах бараануудыг сонго (хамгийн ихдээ 10).
           </p>
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
@@ -512,15 +700,12 @@ export default function AdminSettings() {
             </div>
             <div className="relative">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5" style={{ color: 'var(--text-tertiary)' }} />
-              <input value={saleSearch} onChange={e => setSaleSearch(e.target.value)}
-                placeholder="Бараа хайх..." className="input text-xs pl-8 py-2 w-44" />
+              <input value={saleSearch} onChange={e => setSaleSearch(e.target.value)} placeholder="Бараа хайх..." className="input text-xs pl-8 py-2 w-44" />
             </div>
           </div>
-
           {saleProducts.length === 0 ? (
             <div className="text-center py-10 rounded-xl" style={{ background: 'var(--surface-1)' }}>
               <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Хямдралтай бараа байхгүй</p>
-              <p className="text-xs mt-1" style={{ color: 'var(--text-tertiary)' }}>Бараанд "Хямдралсан үнэ" оруулна уу</p>
             </div>
           ) : (
             <div className="space-y-1.5 max-h-96 overflow-y-auto pr-1">
@@ -531,11 +716,8 @@ export default function AdminSettings() {
                   <button key={p.id} onClick={() => toggleSaleProduct(p.id)}
                     className="w-full flex items-center gap-3 p-3 rounded-xl border text-left transition-all"
                     style={{ borderColor: selected ? '#EF4444' : 'var(--border)', background: selected ? 'rgba(239,68,68,0.05)' : 'var(--surface-1)' }}>
-                    <div className="w-11 h-11 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center"
-                      style={{ background: 'var(--surface-2)' }}>
-                      {p.image_url
-                        ? <img src={imgUrl(p.image_url)} alt={p.name} className="w-10 h-10 object-contain" />
-                        : <span className="text-xl">📦</span>}
+                    <div className="w-11 h-11 rounded-xl flex-shrink-0 overflow-hidden flex items-center justify-center" style={{ background: 'var(--surface-2)' }}>
+                      {p.image_url ? <img src={imgUrl(p.image_url)} alt={p.name} className="w-10 h-10 object-contain" /> : <span className="text-xl">📦</span>}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-xs truncate" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
@@ -553,20 +735,16 @@ export default function AdminSettings() {
                   </button>
                 );
               })}
-              {filteredSale.length === 0 && (
-                <p className="text-center text-sm py-6" style={{ color: 'var(--text-tertiary)' }}>Бараа олдсонгүй</p>
-              )}
+              {filteredSale.length === 0 && <p className="text-center text-sm py-6" style={{ color: 'var(--text-tertiary)' }}>Олдсонгүй</p>}
             </div>
           )}
         </SectionCard>
       )}
 
-      {/* ── Trust / Давуу тал section ── */}
+      {/* ── Trust ── */}
       {activeTab === 'trust' && (
-        <SectionCard icon={<Award className="w-4 h-4 text-amber-500" />} title="Давуу талын хэсэг (footer дээрх 4 box)">
-          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-            Home хуудасны доод хэсэгт харагдах давуу талуудыг засна. Хамгийн ихдээ 4, хамгийн багадаа 2.
-          </p>
+        <SectionCard icon={<Award className="w-4 h-4 text-amber-500" />} title="Давуу талын хэсэг">
+          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Хамгийн ихдээ 4, хамгийн багадаа 2.</p>
           <div className="space-y-3 mb-4">
             {trustItems.map((item, idx) => (
               <div key={idx} className="border rounded-2xl p-4 space-y-3" style={{ borderColor: 'var(--border)' }}>
@@ -574,8 +752,7 @@ export default function AdminSettings() {
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center text-lg" style={{ background: item.color + '20' }}>
                     {ICON_OPTIONS.find(i => i.value === item.icon)?.label.split(' ')[0] || '⭐'}
                   </div>
-                  <button onClick={() => removeTrust(idx)} disabled={trustItems.length <= 2}
-                    className="text-red-500 disabled:opacity-30 p-1 hover:bg-red-50 rounded-lg transition-colors">
+                  <button onClick={() => removeTrust(idx)} disabled={trustItems.length <= 2} className="text-red-500 disabled:opacity-30 p-1 hover:bg-red-50 rounded-lg">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -598,44 +775,39 @@ export default function AdminSettings() {
                   </div>
                   <div>
                     <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Гарчиг</label>
-                    <input value={item.title} onChange={e => updateTrust(idx, 'title', e.target.value)} className="input text-sm" placeholder="Үнэгүй хүргэлт" />
+                    <input value={item.title} onChange={e => updateTrust(idx, 'title', e.target.value)} className="input text-sm" />
                   </div>
                   <div>
                     <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Тайлбар</label>
-                    <input value={item.desc} onChange={e => updateTrust(idx, 'desc', e.target.value)} className="input text-sm" placeholder="100,000₮-аас дээш" />
+                    <input value={item.desc} onChange={e => updateTrust(idx, 'desc', e.target.value)} className="input text-sm" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
           {trustItems.length < 4 && (
-            <button onClick={addTrustItem} className="btn-ghost border rounded-xl px-4 py-2 text-sm flex items-center gap-2 w-full justify-center"
-              style={{ borderColor: 'var(--border)', borderStyle: 'dashed' }}>
+            <button onClick={addTrustItem} className="btn-ghost border rounded-xl px-4 py-2 text-sm flex items-center gap-2 w-full justify-center" style={{ borderColor: 'var(--border)', borderStyle: 'dashed' }}>
               <Plus className="w-4 h-4" /> Item нэмэх ({trustItems.length}/4)
             </button>
           )}
         </SectionCard>
       )}
 
-      {/* ── Announcement bar ── */}
+      {/* ── Announcement ── */}
       {activeTab === 'announce' && (
         <SectionCard icon={<Megaphone className="w-4 h-4 text-brand-primary" />} title="Зарлалын мөр">
-          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>
-            Navbar-ын дээр харагдах зарлалын мөр. Хоосон бол харагдахгүй.
-          </p>
-          <input value={storeInfo.announcement}
-            onChange={e => setStoreInfo(s => ({ ...s, announcement: e.target.value }))}
+          <p className="text-xs mb-4" style={{ color: 'var(--text-secondary)' }}>Navbar-ын дээр харагдах зарлал. Хоосон бол харагдахгүй.</p>
+          <input value={storeInfo.announcement} onChange={e => setStoreInfo(s => ({ ...s, announcement: e.target.value }))}
             className="input text-sm" placeholder="🔥 Хямдрал эхлэлээ! Бүх захиалгад 10% хямдрал..." />
           {storeInfo.announcement && (
-            <div className="mt-3 p-3 rounded-xl text-center text-sm font-semibold text-white animate-gradient"
-              style={{ background: 'linear-gradient(135deg, #6C63FF, #a855f7, #6C63FF)', backgroundSize: '200% 200%' }}>
+            <div className="mt-3 p-3 rounded-xl text-center text-sm font-semibold text-white"
+              style={{ background: 'linear-gradient(135deg, #6C63FF, #a855f7)' }}>
               {storeInfo.announcement}
             </div>
           )}
         </SectionCard>
       )}
 
-      {/* Save */}
       <div className="flex justify-end pt-2">
         <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 px-8">
           <Save className="w-4 h-4" /> {saving ? 'Хадгалж байна...' : 'Бүгдийг хадгалах'}
