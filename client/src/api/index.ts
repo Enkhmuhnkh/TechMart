@@ -112,6 +112,9 @@ export const aiApi = {
 
   clearSession: (token: string) =>
     apiClient.delete(`/ai/sessions/${token}`).then(r => r.data),
+
+  getHistory: () =>
+    apiClient.get('/ai/history').then(r => r.data.data),
 };
 
 // ─── ADMIN ─────────────────────────────────────────────────────────────────

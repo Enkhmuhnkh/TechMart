@@ -1,17 +1,14 @@
-import { redis } from '../../config/redis';
-import { query } from '../../shared/db';
+import { query, queryOne } from '../../shared/db';
 import { env } from '../../config/env';
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
+const MODEL = 'llama-3.3-70b-versatile';
 
-// compound-beta = Groq-ийн автомат web search хийдэг model
-const MODEL_COMPOUND = 'compound-beta';
-// Filter extraction-д хурдан model
-const MODEL_FILTER  = 'llama-3.3-70b-versatile';
+// ── In-memory fallback for sessions (Redis-гүй үед) ───────────────────────────
+const memSessions = new Map<string, ChatMessage[]>();
 
-// ─── System prompts ──────────────────────────────────────────────────────────
-
-const FILTER_SYSTEM_PROMPT = `You are a precise product filter extraction engine for a Mongolian tech store.
+// ── System prompts ─────────────────────────────────────────────────────────────
+const FILTER_SYSTEM_PROMPT = `You are a precise product filter extraction engine for TechMart — a Mongolian tech store.
 User writes in Mongolian, English, or mixed. Output ONLY raw JSON — no markdown, no backticks.
 
 CRITICAL RULES:
@@ -19,86 +16,72 @@ CRITICAL RULES:
 2. Extract the EXACT category. Never mix categories.
 3. If user says "Samsung phone", set brand="Samsung" AND category="phones".
 4. Set search_terms to NULL always — use category and brand instead.
+5. detect_web_search: true if user asks about product reviews, comparisons, specs not in DB, "best X", "ямар нь сайн"
 
 Category mapping:
-- utas, утас, phone, smartphone, гар утас -> "phones"
+- utas, утас, phone, smartphone -> "phones"
 - laptop, зөөврийн, notebook -> "laptops"
-- monitor, дэлгэц, screen, display -> "monitors"
-- earbuds, чихэвч, airpods, tws, wireless earphone -> "earbuds"
+- monitor, дэлгэц -> "monitors"
+- earbuds, чихэвч, airpods, tws -> "earbuds"
 - headphones, том чихэвч -> "headphones"
 - keyboard, гар, клавиатур -> "keyboards"
 - mouse, хулгана -> "mice"
-- gpu, видео карт, graphics card -> "gpus"
+- gpu, видео карт -> "gpus"
 - ssd, hdd, storage, хадгалах -> "storage"
-- smartwatch, ухаалаг цаг, watch -> "smartwatches"
+- smartwatch, ухаалаг цаг -> "smartwatches"
+- tablet, iPad -> "tablets"
 
-Price: "сая/say" = million MNT, "мянга/myanga" = thousand MNT.
+Price: "сая/say" = 1000000, "мянга/myanga" = 1000.
 
 Output format:
 {
   "language": "mn" or "en",
-  "category": one of [laptops,phones,tablets,monitors,keyboards,mice,earbuds,headphones,smartwatches,gpus,cpus,storage,accessories] or null,
-  "brand": exact brand as user said or null,
+  "category": string or null,
+  "brand": string or null,
   "min_price": number or null,
   "max_price": number or null,
   "specs": [{"key": string, "value": string}],
   "use_case": string or null,
-  "intent": "search" or "recommend" or "compare" or "question" or "web_info",
-  "needs_web_search": true if user asks about specs/reviews/comparisons not findable in store DB,
-  "search_terms": null
-}
+  "intent": "search" | "recommend" | "compare" | "question" | "research",
+  "search_terms": null,
+  "detect_web_search": boolean,
+  "web_query": string or null
+}`;
 
-Examples:
-- "iPhone 17 specs юу вэ" -> {"intent":"web_info","needs_web_search":true,"category":"phones","brand":"Apple"}
-- "Samsung Galaxy S26 review" -> {"intent":"web_info","needs_web_search":true,"brand":"Samsung"}
-- "3 сая доторх gaming laptop" -> {"category":"laptops","max_price":3000000,"use_case":"gaming","needs_web_search":false}`;
+const MAIN_SYSTEM_PROMPT = `Чи TechMart AI туслагч — Монголын tech дэлгүүрийн мэргэжлийн зөвлөгч.
 
-const MAIN_SYSTEM_PROMPT = `You are TechMart AI — Mongolia's most knowledgeable tech shopping expert and advisor.
+ЧИНИЙ ТУХАЙ:
+- Нэр: TechMart AI
+- Монгол болон Англи хэлээр чөлөөтэй ярилцана
+- Хэрэглэгчийн бичсэн хэлээр хариулна
+- Мэргэжлийн, найрсаг, товч байна
 
-## YOUR CAPABILITIES
-1. 📦 TechMart product inventory (provided in each message with real prices in ₮)
-2. 🌐 Web search for latest specs, benchmarks, reviews, global prices
-3. 🧠 Deep expertise in consumer electronics
+ХИЙЖ ЧАДАХ ЗҮЙ:
+1. 🔍 Дэлгүүрийн бодит бараануудаас хайж санал болгох
+2. 💡 Техникийн зөвлөгөө өгөх (spec тайлбарлах, харьцуулах)
+3. 🌐 Интернетийн мэдээлэл дээр үндэслэн гүнзгий дүн шинжилгээ хийх
+4. 📊 Бараануудыг харьцуулж давуу/сул талыг тайлбарлах
+5. 💰 Төсөвт тохирсон хамгийн зүйтэй сонголт санал болгох
 
-## HOW TO RESPOND
+БАРАА САНАЛ БОЛГОХДОО:
+- Заавал бодит мэдээлэл ашиглах, зохиомол spec бичихгүй
+- Үнэ, нөөц, брэнд зөв дурьдах
+- Хэрэглэгчийн хэрэгцээнд яагаад тохирохыг тайлбарлах
+- Сагсанд нэмэх товч дарах боломжтойг дурьдаж болно
 
-**For product recommendations:**
-- Match user's budget and needs to TechMart inventory
-- Explain WHY each product fits their use case (specific specs)
-- Highlight best value option
-- Compare 2-3 options if budget allows
+ВЕБ ХАЙЛТЫН ДҮНГ АШИГЛАХДАА:
+- "Интернетийн мэдээллээс үзэхэд..." гэж эхлэх
+- Мэдээллийн эх сурвалжийг дурьдах
+- Дэлгүүрийн бараатай холбох
 
-**For specs/info questions:**
-- Use web search to get accurate, current specs
-- Cross-reference with what TechMart carries
-- Give honest assessment (is TechMart's price fair? good deal?)
+ТУСЛАМЖ ХҮСЭХ АСУУЛТЫН ЖИШЭЭ:
+- "Дэлгэрэнгүй мэдэхийг хүсвэл надаас асуугаарай"
+- Сүүлд НЭГ л асуулт тавих
 
-**For comparisons:**
-- Use web search for benchmark data
-- Compare real-world performance, not just specs on paper
-- Give a clear winner recommendation
+ХЯЗГААРЛАЛТ:
+- Дэлгүүртэй холбогдохгүй сэдвүүдэд "Би зөвхөн tech бараа, дэлгүүрийн талаар туслах боломжтой" гэж хэлэх`;
 
-## RESPONSE FORMAT (adapt to context)
-1. **Direct answer** — no fluff, get to the point
-2. **Key specs** — only what matters for this use case  
-3. **TechMart picks** — with exact ₮ prices
-4. **Verdict** — best choice and why
-5. One follow-up question (optional)
-
-## RULES
-- Always respond in user's language (Монголоор if they write Mongolian)
-- Never invent specs — use web search or provided data only
-- Be specific: exact model names, exact specs, exact prices
-- If TechMart doesn't have the best option, say so honestly
-- Prices are in MNT: 1 сая = 1,000,000₮, use ₮ symbol
-
-## MONGOLIAN MARKET CONTEXT  
-- Common brands: Apple, Samsung, Lenovo, Dell, ASUS, Acer, Sony, Bose, LG, HP
-- Mongolia import taxes make some items pricier than international prices
-- Popular use cases: gaming, programming, business, student, content creation`;
-
-// ─── Types ───────────────────────────────────────────────────────────────────
-
+// ── Types ──────────────────────────────────────────────────────────────────────
 interface FilterResult {
   language: string;
   category: string | null;
@@ -108,8 +91,9 @@ interface FilterResult {
   specs: Array<{ key: string; value: string }>;
   use_case: string | null;
   intent: string;
-  needs_web_search?: boolean;
   search_terms: string | null;
+  detect_web_search: boolean;
+  web_query: string | null;
 }
 
 export interface ChatMessage {
@@ -117,90 +101,89 @@ export interface ChatMessage {
   content: string;
 }
 
-export interface AiEvent {
-  type: 'searching' | 'source' | 'thinking';
-  query?: string;
-  url?: string;
-  title?: string;
-}
-
-// ─── Groq API helpers ────────────────────────────────────────────────────────
-
+// ── Groq call ─────────────────────────────────────────────────────────────────
 async function callGroq(
-  model: string,
   messages: Array<{ role: string; content: string }>,
   stream = false,
   temperature = 0.7
 ): Promise<Response> {
   const apiKey = (env as any).GROQ_API_KEY;
-  if (!apiKey) throw new Error('GROQ_API_KEY not set');
-
+  if (!apiKey) throw new Error('GROQ_API_KEY not configured');
   return fetch(GROQ_API_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature,
-      max_tokens: 1500,
-      stream,
-    }),
+    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+    body: JSON.stringify({ model: MODEL, messages, temperature, max_tokens: 1500, stream }),
   });
 }
 
-// ─── Filter extraction ───────────────────────────────────────────────────────
-
-async function extractFilters(userMessage: string): Promise<FilterResult> {
+// ── Web search via Groq (интернет дэх мэдээлэл) ───────────────────────────────
+async function webResearch(query: string, lang: string): Promise<string> {
   try {
-    const response = await callGroq(
-      MODEL_FILTER,
-      [
-        { role: 'system', content: FILTER_SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-      false,
-      0.1
-    );
-    const data = (await response.json()) as any;
+    const langInstr = lang === 'mn' ? 'Монгол хэлээр хариул.' : 'Respond in English.';
+    const response = await callGroq([
+      {
+        role: 'system',
+        content: `Чи tech бүтээгдэхүүний мэргэжлийн шинжээч. Интернетийн мэдлэгтээ үндэслэн дэлгэрэнгүй, бодит мэдээлэл өг.
+Дараах зүйлийг оруул: техникийн үзүүлэлт, давуу/сул тал, үнийн зах зээлийн байдал, хэрэглэгчдийн ерөнхий санал.
+${langInstr} 300 үгнээс хэтрэхгүй байх.`,
+      },
+      { role: 'user', content: `${query} талаар дэлгэрэнгүй мэдээлэл өг.` },
+    ], false, 0.3);
+    const data = await response.json() as any;
+    return data.choices?.[0]?.message?.content || '';
+  } catch {
+    return '';
+  }
+}
+
+// ── Filter extraction ──────────────────────────────────────────────────────────
+async function extractFilters(userMessage: string, history: ChatMessage[]): Promise<FilterResult> {
+  try {
+    // Include last 2 exchanges for context
+    const ctx = history.slice(-4).map(m => `${m.role}: ${m.content}`).join('\n');
+    const prompt = ctx ? `Өмнөх яриа:\n${ctx}\n\nШинэ асуулт: ${userMessage}` : userMessage;
+    const response = await callGroq([
+      { role: 'system', content: FILTER_SYSTEM_PROMPT },
+      { role: 'user', content: prompt },
+    ], false, 0.1);
+    const data = await response.json() as any;
     const text: string = data.choices?.[0]?.message?.content || '{}';
-    return JSON.parse(text.replace(/```json|```/g, '').trim());
+    const clean = text.replace(/```json|```/g, '').trim();
+    return JSON.parse(clean);
   } catch {
     return {
       language: 'mn', category: null, brand: null,
       min_price: null, max_price: null, specs: [],
-      use_case: null, intent: 'search',
-      needs_web_search: false, search_terms: userMessage,
+      use_case: null, intent: 'search', search_terms: userMessage,
+      detect_web_search: false, web_query: null,
     };
   }
 }
 
-// ─── Category normalizer ─────────────────────────────────────────────────────
-
+// ── Category normalization ─────────────────────────────────────────────────────
 const CATEGORY_MAP: Record<string, string> = {
   smartphones: 'phones', smartphone: 'phones', phone: 'phones', mobile: 'phones',
-  utas: 'phones', 'гар утас': 'phones', утас: 'phones',
-  laptop: 'laptops', notebook: 'laptops', 'зөөврийн': 'laptops',
-  monitor: 'monitors', display: 'monitors', screen: 'monitors', дэлгэц: 'monitors',
-  earbud: 'earbuds', earphone: 'earbuds', earphones: 'earbuds', tws: 'earbuds',
-  airpods: 'earbuds', чихэвч: 'earbuds',
+  utas: 'phones', утас: 'phones',
+  laptop: 'laptops', notebook: 'laptops', зөөврийн: 'laptops',
+  monitor: 'monitors', display: 'monitors', дэлгэц: 'monitors',
+  earbud: 'earbuds', earphone: 'earbuds', airpod: 'earbuds', airpods: 'earbuds',
+  tws: 'earbuds', чихэвч: 'earbuds',
   headphone: 'headphones', 'том чихэвч': 'headphones',
-  keyboard: 'keyboards', гар: 'keyboards',
+  keyboard: 'keyboards', клавиатур: 'keyboards',
   mouse: 'mice', хулгана: 'mice',
   gpu: 'gpus', 'graphics card': 'gpus', 'видео карт': 'gpus',
-  ssd: 'storage', hdd: 'storage', 'хадгалах': 'storage',
-  smartwatch: 'smartwatches', watch: 'smartwatches', 'ухаалаг цаг': 'smartwatches',
+  ssd: 'storage', hdd: 'storage', хадгалах: 'storage',
+  smartwatch: 'smartwatches', 'ухаалаг цаг': 'smartwatches',
+  ipad: 'tablets',
 };
 
 function normalizeCategory(cat: string | null): string | null {
   if (!cat) return null;
-  return CATEGORY_MAP[cat.toLowerCase().trim()] || cat.toLowerCase().trim();
+  const lower = cat.toLowerCase().trim();
+  return CATEGORY_MAP[lower] || lower;
 }
 
-// ─── Product DB query ────────────────────────────────────────────────────────
-
+// ── Product query ──────────────────────────────────────────────────────────────
 async function runProductQuery(conditions: string[], vals: unknown[], limit: number) {
   const i = vals.length + 1;
   const { rows } = await query(
@@ -214,6 +197,7 @@ async function runProductQuery(conditions: string[], vals: unknown[], limit: num
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
      LEFT JOIN brands b ON p.brand_id = b.id
+     LEFT JOIN product_specs ps ON ps.product_id = p.id
      WHERE ${conditions.join(' AND ')}
      GROUP BY p.id, b.name, c.name, c.slug
      ORDER BY p.created_at DESC
@@ -227,182 +211,170 @@ async function queryProducts(filters: FilterResult, limit = 5): Promise<unknown[
   const category = normalizeCategory(filters.category);
   const base = ["p.status = 'active'", 'p.stock_quantity > 0'];
 
-  const attempts: Array<{ conds: string[]; vals: unknown[] }> = [];
+  const attempts: Array<[string[], unknown[]]> = [];
 
-  // Attempt 1: full filters
+  // Attempt 1: All filters
   {
-    const conds = [...base]; const vals: unknown[] = []; let i = 1;
-    if (category) { conds.push(`c.slug = $${i++}`); vals.push(category); }
-    if (filters.brand) { conds.push(`b.name ILIKE $${i++}`); vals.push(`%${filters.brand}%`); }
-    if (filters.max_price) { conds.push(`COALESCE(p.sale_price, p.price) <= $${i++}`); vals.push(filters.max_price); }
-    if (filters.min_price) { conds.push(`COALESCE(p.sale_price, p.price) >= $${i++}`); vals.push(filters.min_price); }
-    attempts.push({ conds, vals });
+    const c = [...base]; const v: unknown[] = []; let i = 1;
+    if (category) { c.push(`c.slug = $${i++}`); v.push(category); }
+    if (filters.brand) { c.push(`b.name ILIKE $${i++}`); v.push(`%${filters.brand}%`); }
+    if (filters.max_price) { c.push(`COALESCE(p.sale_price, p.price) <= $${i++}`); v.push(filters.max_price); }
+    if (filters.min_price) { c.push(`COALESCE(p.sale_price, p.price) >= $${i++}`); v.push(filters.min_price); }
+    attempts.push([c, v]);
   }
-  // Attempt 2: no price
+  // Attempt 2: No price
   {
-    const conds = [...base]; const vals: unknown[] = []; let i = 1;
-    if (category) { conds.push(`c.slug = $${i++}`); vals.push(category); }
-    if (filters.brand) { conds.push(`b.name ILIKE $${i++}`); vals.push(`%${filters.brand}%`); }
-    attempts.push({ conds, vals });
+    const c = [...base]; const v: unknown[] = []; let i = 1;
+    if (category) { c.push(`c.slug = $${i++}`); v.push(category); }
+    if (filters.brand) { c.push(`b.name ILIKE $${i++}`); v.push(`%${filters.brand}%`); }
+    attempts.push([c, v]);
   }
-  // Attempt 3: category only
-  if (category) attempts.push({ conds: [...base, `c.slug = $1`], vals: [category] });
-  // Attempt 4: brand only
-  if (filters.brand) attempts.push({ conds: [...base, `b.name ILIKE $1`], vals: [`%${filters.brand}%`] });
-  // Attempt 5: search terms
-  if (filters.search_terms) {
-    attempts.push({
-      conds: [...base, `(p.name ILIKE $1 OR p.name_mn ILIKE $1 OR b.name ILIKE $1)`],
-      vals: [`%${filters.search_terms}%`],
-    });
-  }
+  // Attempt 3: Category only
+  if (category) attempts.push([[...base, `c.slug = $1`], [category]]);
+  // Attempt 4: Brand only
+  if (filters.brand) attempts.push([[...base, `b.name ILIKE $1`], [`%${filters.brand}%`]]);
+  // Attempt 5: Use case search
+  if (filters.use_case) attempts.push([[...base, `(p.name ILIKE $1 OR p.description ILIKE $1)`], [`%${filters.use_case}%`]]);
+  // Fallback: newest products
+  attempts.push([[...base], []]);
 
-  for (const { conds, vals } of attempts) {
+  for (const [conds, vals] of attempts) {
     try {
       const rows = await runProductQuery(conds, vals, limit);
       if (rows.length > 0) return rows;
     } catch {}
   }
-
-  // Fallback: newest active
-  const { rows } = await query(
-    `SELECT p.id, p.name, p.name_mn, p.slug, p.price, p.sale_price, p.stock_quantity,
-            b.name as brand_name, c.name as category_name, c.slug as category_slug,
-            (SELECT url FROM product_images WHERE product_id = p.id AND is_primary=true LIMIT 1) as image_url
-     FROM products p
-     LEFT JOIN categories c ON p.category_id = c.id
-     LEFT JOIN brands b ON p.brand_id = b.id
-     WHERE p.status = 'active' AND p.stock_quantity > 0
-     ORDER BY p.created_at DESC LIMIT $1`,
-    [limit]
-  );
-  return rows;
+  return [];
 }
 
-// ─── Compound-beta stream parser ─────────────────────────────────────────────
-// compound-beta автоматаар web search хийдэг — tool_use event-ийг parse хийнэ
+// ── DB History helpers ─────────────────────────────────────────────────────────
+async function getOrCreateSession(sessionToken: string, userId?: string): Promise<string> {
+  try {
+    const existing = await queryOne<{ id: string }>(
+      'SELECT id FROM chat_sessions WHERE session_token = $1', [sessionToken]
+    );
+    if (existing) return existing.id;
 
-async function streamCompound(
-  response: Response,
-  onChunk: (text: string) => void,
-  onEvent: (event: AiEvent) => void,
-): Promise<{ fullText: string; sources: Array<{ url: string; title: string }> }> {
-  const reader = response.body!.getReader();
-  const decoder = new TextDecoder();
-  let fullText = '';
-  const sources: Array<{ url: string; title: string }> = [];
-  const toolArgBuffers: Record<number, string> = {};
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-
-    const lines = decoder.decode(value).split('\n');
-    for (const line of lines) {
-      if (!line.startsWith('data: ') || line.includes('[DONE]')) continue;
-      try {
-        const data = JSON.parse(line.slice(6)) as any;
-        const delta = data.choices?.[0]?.delta;
-        if (!delta) continue;
-
-        // Text content
-        if (delta.content) {
-          fullText += delta.content;
-          onChunk(delta.content);
-        }
-
-        // Tool call — web search хийж байна
-        if (delta.tool_calls) {
-          for (const tc of delta.tool_calls) {
-            const idx = tc.index ?? 0;
-            if (!toolArgBuffers[idx]) toolArgBuffers[idx] = '';
-            if (tc.function?.name === 'web_search' || tc.function?.name === 'search') {
-              // Streaming хайлтын мэдэгдэл
-              if (tc.function.arguments) {
-                toolArgBuffers[idx] += tc.function.arguments;
-                try {
-                  const args = JSON.parse(toolArgBuffers[idx]);
-                  if (args.query) {
-                    onEvent({ type: 'searching', query: args.query });
-                    toolArgBuffers[idx] = '';
-                  }
-                } catch {}
-              }
-            }
-          }
-        }
-
-        // Tool result — source URL цуглуулна
-        if ((delta as any).tool_results) {
-          for (const tr of (delta as any).tool_results) {
-            try {
-              const content = typeof tr.content === 'string' ? JSON.parse(tr.content) : tr.content;
-              if (Array.isArray(content)) {
-                for (const item of content) {
-                  if (item.url && item.title) {
-                    sources.push({ url: item.url, title: item.title });
-                    onEvent({ type: 'source', url: item.url, title: item.title });
-                  }
-                }
-              }
-            } catch {}
-          }
-        }
-      } catch {}
-    }
+    const { rows } = await query(
+      `INSERT INTO chat_sessions (session_token, user_id, title)
+       VALUES ($1, $2, 'Шинэ яриа') RETURNING id`,
+      [sessionToken, userId || null]
+    );
+    return rows[0].id;
+  } catch {
+    return sessionToken; // fallback
   }
-
-  return { fullText, sources };
 }
 
-// ─── Main chat function ───────────────────────────────────────────────────────
+async function saveMessageToDB(
+  sessionId: string, role: 'user' | 'assistant',
+  content: string, products: unknown[] = []
+): Promise<void> {
+  try {
+    await query(
+      `INSERT INTO chat_messages (session_id, role, content, products_json)
+       VALUES ($1, $2, $3, $4)`,
+      [sessionId, role, content, JSON.stringify(products)]
+    );
+    await query(
+      `UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1`,
+      [sessionId]
+    );
+  } catch (e) {
+    console.error('saveMessageToDB error:', e);
+  }
+}
 
+async function getSessionHistory(sessionToken: string): Promise<ChatMessage[]> {
+  try {
+    const session = await queryOne<{ id: string }>(
+      'SELECT id FROM chat_sessions WHERE session_token = $1', [sessionToken]
+    );
+    if (!session) return memSessions.get(sessionToken) || [];
+
+    const { rows } = await query(
+      `SELECT role, content FROM chat_messages
+       WHERE session_id = $1 ORDER BY created_at ASC LIMIT 20`,
+      [session.id]
+    );
+    return rows as ChatMessage[];
+  } catch {
+    return memSessions.get(sessionToken) || [];
+  }
+}
+
+function updateMemHistory(token: string, user: string, assistant: string) {
+  const h = memSessions.get(token) || [];
+  const updated = [...h, { role: 'user' as const, content: user }, { role: 'assistant' as const, content: assistant }].slice(-20);
+  memSessions.set(token, updated);
+}
+
+// ── Update session title ───────────────────────────────────────────────────────
+async function updateSessionTitle(sessionId: string, userMessage: string): Promise<void> {
+  try {
+    const title = userMessage.slice(0, 80).trim();
+    await query('UPDATE chat_sessions SET title = $1 WHERE id = $2 AND title = $3', [title, sessionId, 'Шинэ яриа']);
+  } catch {}
+}
+
+// ── Main chat function ─────────────────────────────────────────────────────────
 export async function chat(
   userMessage: string,
-  sessionId: string,
+  sessionToken: string,
   onChunk: (chunk: string) => void,
-  onEvent: (event: AiEvent) => void,
-): Promise<{ products: unknown[]; sources: Array<{ url: string; title: string }> }> {
-  const historyKey = `ai:session:${sessionId}`;
-  const historyRaw = await redis.get(historyKey);
-  const history: ChatMessage[] = historyRaw ? JSON.parse(historyRaw) : [];
+  userId?: string
+): Promise<{ products: unknown[]; filters: FilterResult }> {
 
-  // Step 1: Filter extraction
-  const filters = await extractFilters(userMessage);
+  // 1. Load history
+  const history = await getSessionHistory(sessionToken);
+
+  // 2. Extract filters (context-aware)
+  const filters = await extractFilters(userMessage, history);
   const category = normalizeCategory(filters.category);
 
-  // Step 2: DB product search
+  // 3. Query products from DB
   const products = await queryProducts(filters);
 
-  // Step 3: Build context prompt
-  const productContext = products.length > 0
-    ? products.map((p: any) => {
-        const price = p.sale_price
-          ? `${Number(p.sale_price).toLocaleString()}₮ (хямдарсан, анх: ${Number(p.price).toLocaleString()}₮)`
-          : `${Number(p.price).toLocaleString()}₮`;
-        const specs = Array.isArray(p.specs)
-          ? p.specs.slice(0, 6).map((s: any) => `${s.key}: ${s.value}`).join(', ')
-          : '';
-        return `• ${p.name}${p.name_mn ? ` / ${p.name_mn}` : ''} — ${price} | Нөөц: ${p.stock_quantity} | ${specs}`;
-      }).join('\n')
-    : 'TechMart-д тохирох бараа олдсонгүй.';
+  // 4. Web research if needed
+  let webInfo = '';
+  const needsWebSearch = filters.detect_web_search ||
+    filters.intent === 'research' ||
+    (filters.intent === 'question' && products.length === 0);
 
-  const lang = filters.language === 'mn' ? 'Монгол хэлээр' : 'in English';
-  const contextPrompt = `## Хэрэглэгчийн хүсэлт
-"${userMessage}"
+  if (needsWebSearch) {
+    const searchQuery = filters.web_query ||
+      `${filters.brand || ''} ${filters.category || ''} ${userMessage}`.trim();
+    onChunk('\n'); // signal to frontend
+    webInfo = await webResearch(searchQuery, filters.language);
+  }
 
-## TechMart дахь бараа (шинэ үнэтэй)
-${productContext}
+  // 5. Build prompt
+  const productSummary = products.map((p: any) => ({
+    name: p.name,
+    name_mn: p.name_mn,
+    brand: p.brand_name,
+    category: p.category_name,
+    price: `${Math.round(Number(p.sale_price || p.price)).toLocaleString()}₮`,
+    original_price: p.sale_price ? `${Math.round(Number(p.price)).toLocaleString()}₮` : null,
+    stock: p.stock_quantity,
+    description: p.description?.slice(0, 150),
+    specs: Array.isArray(p.specs) ? p.specs.slice(0, 5) : [],
+    slug: p.slug,
+  }));
 
-## Нэмэлт мэдээлэл
-- Ангилал: ${category || 'тодорхойгүй'}
-- Брэнд: ${filters.brand || 'тодорхойгүй'}  
-- Дээд үнэ: ${filters.max_price ? Number(filters.max_price).toLocaleString() + '₮' : 'хязгааргүй'}
-- Зорилго: ${filters.use_case || 'тодорхойгүй'}
+  const lang = filters.language === 'mn' ? 'Монгол' : 'English';
 
-${filters.needs_web_search ? '⚡ Хэрэглэгч мэргэжлийн мэдээлэл хүсэж байна — вэб хайлт ашиглан дэлгэрэнгүй specs, benchmark, review өгнө үү.' : ''}
+  let contextPrompt = `Хэрэглэгчийн асуулт: "${userMessage}"
+Хайлтын параметр: ангилал=${category || 'бүгд'}, брэнд=${filters.brand || 'бүгд'}, хамгийн их үнэ=${filters.max_price ? filters.max_price.toLocaleString() + '₮' : 'тодорхойгүй'}
+Дэлгүүрээс олдсон бараа: ${productSummary.length} ширхэг
 
-Respond ${lang}.`;
+${productSummary.length > 0
+  ? `ДЭЛГҮҮРИЙН БАРААНУУД:\n${JSON.stringify(productSummary, null, 2)}`
+  : 'Дэлгүүрт тохирох бараа олдсонгүй.'}
+
+${webInfo ? `\nИНТЕРНЕТИЙН МЭДЭЭЛЭЛ (${filters.web_query || userMessage}):\n${webInfo}` : ''}
+
+${lang} хэлээр хариул. Товч, мэргэжлийн байх.`;
 
   const messages = [
     { role: 'system', content: MAIN_SYSTEM_PROMPT },
@@ -410,64 +382,88 @@ Respond ${lang}.`;
     { role: 'user', content: contextPrompt },
   ];
 
-  // Step 4: Stream response (compound-beta → fallback llama)
-  let fullText = '';
-  let sources: Array<{ url: string; title: string }> = [];
+  // 6. Stream response
+  let fullResponse = '';
 
   try {
-    const response = await callGroq(MODEL_COMPOUND, messages, true, 0.7);
+    const response = await callGroq(messages, true);
 
-    if (!response.ok || !response.body) throw new Error('compound-beta unavailable');
+    if (!response.ok || !response.body) throw new Error('Stream failed');
 
-    const result = await streamCompound(response, onChunk, onEvent);
-    fullText = result.fullText;
-    sources = result.sources;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
 
-  } catch (err) {
-    // Fallback to regular streaming
-    console.warn('compound-beta failed, falling back to llama:', err);
-    try {
-      const fallback = await callGroq(MODEL_FILTER, messages, true);
-      if (!fallback.ok || !fallback.body) throw new Error('fallback also failed');
-
-      const reader = fallback.body.getReader();
-      const decoder = new TextDecoder();
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        for (const line of decoder.decode(value).split('\n')) {
-          if (!line.startsWith('data: ') || line.includes('[DONE]')) continue;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      for (const line of chunk.split('\n')) {
+        if (line.startsWith('data: ') && !line.includes('[DONE]')) {
           try {
             const data = JSON.parse(line.slice(6)) as any;
             const text: string = data.choices?.[0]?.delta?.content || '';
-            if (text) { onChunk(text); fullText += text; }
+            if (text) { onChunk(text); fullResponse += text; }
           } catch {}
         }
       }
+    }
+  } catch {
+    // Fallback non-streaming
+    try {
+      const fallback = await callGroq(messages, false);
+      const data = await fallback.json() as any;
+      fullResponse = data.choices?.[0]?.message?.content || 'Уучлаарай, алдаа гарлаа. Дахин оролдоно уу.';
+      onChunk(fullResponse);
     } catch {
-      const msg = 'Уучлаарай, түр алдаа гарлаа. Дахин оролдоно уу.';
-      onChunk(msg);
-      fullText = msg;
+      fullResponse = 'Уучлаарай, алдаа гарлаа.';
+      onChunk(fullResponse);
     }
   }
 
-  // Step 5: Save history
-  const updated: ChatMessage[] = [
-    ...history,
-    { role: 'user' as const, content: userMessage },
-    { role: 'assistant' as const, content: fullText },
-  ].slice(-20);
-  await redis.setex(historyKey, 7200, JSON.stringify(updated));
+  // 7. Save to DB
+  try {
+    const dbSessionId = await getOrCreateSession(sessionToken, userId);
+    await updateSessionTitle(dbSessionId, userMessage);
+    await saveMessageToDB(dbSessionId, 'user', userMessage);
+    await saveMessageToDB(dbSessionId, 'assistant', fullResponse, products);
+  } catch {}
 
-  return { products, sources };
+  // 8. Update in-memory fallback
+  updateMemHistory(sessionToken, userMessage, fullResponse);
+
+  return { products, filters };
 }
 
-export async function getSession(sessionId: string): Promise<ChatMessage[]> {
-  const raw = await redis.get(`ai:session:${sessionId}`);
-  return raw ? JSON.parse(raw) : [];
+// ── Public session functions ───────────────────────────────────────────────────
+export async function getSession(sessionToken: string): Promise<ChatMessage[]> {
+  return getSessionHistory(sessionToken);
 }
 
-export async function clearSession(sessionId: string): Promise<void> {
-  await redis.del(`ai:session:${sessionId}`);
+export async function clearSession(sessionToken: string): Promise<void> {
+  try {
+    memSessions.delete(sessionToken);
+    const session = await queryOne<{ id: string }>(
+      'SELECT id FROM chat_sessions WHERE session_token = $1', [sessionToken]
+    );
+    if (session) {
+      await query('DELETE FROM chat_messages WHERE session_id = $1', [session.id]);
+      await query('DELETE FROM chat_sessions WHERE id = $1', [session.id]);
+    }
+  } catch {}
+}
+
+export async function getUserSessions(userId: string) {
+  try {
+    const { rows } = await query(
+      `SELECT cs.session_token, cs.title, cs.updated_at,
+              COUNT(cm.id) as message_count
+       FROM chat_sessions cs
+       LEFT JOIN chat_messages cm ON cm.session_id = cs.id
+       WHERE cs.user_id = $1
+       GROUP BY cs.id, cs.session_token, cs.title, cs.updated_at
+       ORDER BY cs.updated_at DESC LIMIT 20`,
+      [userId]
+    );
+    return rows;
+  } catch { return []; }
 }
