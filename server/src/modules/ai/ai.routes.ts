@@ -6,7 +6,7 @@ import { optionalAuth } from '../../middleware/auth.middleware';
 
 const router = Router();
 
-// POST /api/ai/chat — Server-Sent Events streaming response
+// POST /api/ai/chat — Server-Sent Events streaming
 router.post('/chat', optionalAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { message, sessionId } = req.body;
@@ -17,34 +17,48 @@ router.post('/chat', optionalAuth, async (req: Request, res: Response, next: Nex
 
     const sid = sessionId || uuidv4();
 
-    // SSE headers
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',       // Nginx buffering-г унтраана
       'X-Session-Id': sid,
     });
 
     res.write(`data: ${JSON.stringify({ type: 'session', sessionId: sid })}\n\n`);
 
     let products: unknown[] = [];
+    let sources: Array<{ url: string; title: string }> = [];
 
-    await aiService.chat(message, sid, (chunk: string) => {
-      res.write(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`);
-    }).then((result) => {
+    await aiService.chat(
+      message,
+      sid,
+      // onChunk — text stream
+      (chunk: string) => {
+        res.write(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`);
+      },
+      // onEvent — web search events
+      (event: aiService.AiEvent) => {
+        res.write(`data: ${JSON.stringify({ type: event.type, ...event })}\n\n`);
+      },
+    ).then(result => {
       products = result.products;
+      sources = result.sources;
     });
 
-    // Send products after text stream
+    // Products + sources after stream
     res.write(`data: ${JSON.stringify({ type: 'products', products })}\n\n`);
+    if (sources.length > 0) {
+      res.write(`data: ${JSON.stringify({ type: 'sources', sources })}\n\n`);
+    }
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
+
   } catch (err) {
     next(err);
   }
 });
 
-// GET /api/ai/sessions/:token — resume session history
 router.get('/sessions/:token', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const history = await aiService.getSession(req.params.token);
@@ -52,7 +66,6 @@ router.get('/sessions/:token', async (req: Request, res: Response, next: NextFun
   } catch (err) { next(err); }
 });
 
-// DELETE /api/ai/sessions/:token — clear session
 router.delete('/sessions/:token', async (req: Request, res: Response, next: NextFunction) => {
   try {
     await aiService.clearSession(req.params.token);
