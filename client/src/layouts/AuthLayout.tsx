@@ -1,7 +1,5 @@
 import { Outlet, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '../api';
 
 const FEATURES = [
   { icon: '🚀', title: 'Хурдан хүргэлт', desc: 'Улаанбаатар дотор 24 цагт' },
@@ -11,14 +9,9 @@ const FEATURES = [
 ];
 
 export function AuthLayout() {
-  const { data: settings } = useQuery({
-    queryKey: ['store-settings'],
-    queryFn: () => adminApi.getSettings(),
-    staleTime: 5 * 60 * 1000,
-    retry: false,
-  });
-  const storeName = settings?.store_name || 'TechMart';
-  const storeLogo = settings?.store_logo || null;
+
+  const storeName = 'TechMart';
+  const storeLogo = null;
 
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--surface-0)' }}>
