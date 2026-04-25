@@ -93,15 +93,14 @@ export const wishlistApi = {
 
 // ─── AI ────────────────────────────────────────────────────────────────────
 export const aiApi = {
-  // Returns an EventSource-like stream
   chat: (message: string, sessionId?: string) => {
-    return fetch('/api/ai/chat', {
+    const base = import.meta.env.VITE_API_URL || '';
+    const token = localStorage.getItem('access_token');
+    return fetch(`${base}/api/ai/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...(localStorage.getItem('access_token')
-          ? { Authorization: `Bearer ${localStorage.getItem('access_token')}` }
-          : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({ message, sessionId }),
     });
