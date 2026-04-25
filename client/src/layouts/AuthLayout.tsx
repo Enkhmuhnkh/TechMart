@@ -10,7 +10,7 @@ const FEATURES = [
   { icon: '💳', title: 'Аюулгүй төлбөр', desc: 'Олон төрлийн төлбөрийн арга' },
 ];
 
-export default function AuthLayout() {
+export function AuthLayout() {
   const { data: settings } = useQuery({
     queryKey: ['store-settings'],
     queryFn: () => adminApi.getSettings(),
