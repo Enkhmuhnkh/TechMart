@@ -162,15 +162,28 @@ function DesktopSaleSidebar() {
 }
 
 // ── Hero banner ───────────────────────────────────────────────────────────────
+// Home/index.tsx дотор HeroBanner функцийг доорхоор солино
+
 function HeroBanner() {
-  const { data: settings } = useQuery({ queryKey: ['store-settings'], queryFn: () => adminApi.getSettings(), staleTime: 60000 });
-  const raw = settings ? (() => { try { return JSON.parse(settings.hero_banners || '[]'); } catch { return []; } })() : [];
+  const { data: settings } = useQuery({
+    queryKey: ['store-settings'],
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 60000,
+  });
+
+  const raw = settings
+    ? (() => { try { return JSON.parse(settings.hero_banners || '[]'); } catch { return []; } })()
+    : [];
   const bannerList = raw.length > 0 ? raw : FALLBACK_BANNERS;
 
   const [cur, setCur] = useState(0);
   const [dir, setDir] = useState(1);
+
   useEffect(() => {
-    const t = setInterval(() => { setDir(1); setCur(i => (i + 1) % bannerList.length); }, 5000);
+    const t = setInterval(() => {
+      setDir(1);
+      setCur(i => (i + 1) % bannerList.length);
+    }, 5000);
     return () => clearInterval(t);
   }, [bannerList.length]);
 
@@ -178,87 +191,145 @@ function HeroBanner() {
   if (!b) return null;
 
   return (
-    // Mobile: taller for readability. Desktop: normal
-    <div className="relative overflow-hidden rounded-2xl" style={{ background: b.bg, minHeight: 'clamp(220px, 42vw, 320px)' }}>
+    // Тогтмол өндөр — текстийн урт хамаарахгүй
+    <div className="relative overflow-hidden rounded-2xl"
+      style={{ background: b.bg, height: 300 }}>
+
+      {/* Background image */}
       {b.bg_image_url && (
-        <img src={b.bg_image_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-25" style={{ zIndex: 0 }} />
+        <img src={b.bg_image_url} alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: 0.25, zIndex: 0 }} />
       )}
+
+      {/* Orbs */}
       {!b.bg_image_url && (
         <>
-          <div className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20" style={{ background: b.accent }} />
-          <div className="orb absolute bottom-0 left-1/4 w-44 h-44 opacity-10" style={{ background: b.accent, animationDelay: '3s' }} />
+          <div className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20"
+            style={{ background: b.accent }} />
+          <div className="orb absolute bottom-0 left-1/3 w-44 h-44 opacity-10"
+            style={{ background: b.accent, animationDelay: '3s' }} />
         </>
       )}
+
+      {/* Grid overlay */}
       <div className="absolute inset-0 opacity-[0.04]" style={{
         zIndex: 1,
         backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)',
         backgroundSize: '36px 36px',
       }} />
 
-      {/* Content — mobile stacks vertically, desktop side by side */}
-      <div className="relative flex items-center justify-between gap-4 h-full" style={{ zIndex: 2, padding: 'clamp(20px, 4vw, 56px)' }}>
+      {/* Content — flex, тогтмол өндөр */}
+      <div className="absolute inset-0 flex items-center justify-between gap-4 px-8 md:px-12"
+        style={{ zIndex: 2 }}>
 
-        <motion.div key={`t-${cur}`}
-          initial={{ opacity: 0, x: -24 * dir }} animate={{ opacity: 1, x: 0 }}
+        {/* Left — текст */}
+        <motion.div
+          key={`t-${cur}`}
+          initial={{ opacity: 0, x: -24 * dir }}
+          animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="flex-1 min-w-0">
+          // Текст хэсэг: зургийн хэмжээтэй тэнцүү өргөнтэй
+          className="flex-1 min-w-0 flex flex-col justify-center"
+          style={{ maxWidth: '55%' }}>
 
-          <span className="inline-flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-full mb-3 sm:mb-5"
-            style={{ fontSize: 11, background: b.accent + '22', color: b.accent, border: `1px solid ${b.accent}40` }}>
+          {/* Tag */}
+          <motion.span
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="inline-flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-full mb-3 w-fit"
+            style={{
+              fontSize: 11,
+              background: b.accent + '22',
+              color: b.accent,
+              border: `1px solid ${b.accent}40`,
+            }}>
             <Sparkles className="w-3 h-3" /> {b.tag}
-          </span>
+          </motion.span>
 
-          <h2 className="font-display font-bold text-white leading-tight mb-2 sm:mb-4 whitespace-pre-line"
-            style={{ fontSize: 'clamp(1.25rem, 4.5vw, 2.4rem)' }}>
+          {/* Title — аrai жижиг, overflow байхгүй */}
+          <h2
+            className="font-display font-bold text-white leading-tight mb-2 whitespace-pre-line"
+            style={{
+              // Clamp: хамгийн багадаа 1.1rem, хамгийн ихдээ 1.75rem
+              fontSize: 'clamp(1.1rem, 2.8vw, 1.75rem)',
+              // Хэт урт текст таслана
+              display: '-webkit-box',
+              WebkitLineClamp: 3,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}>
             {b.title}
           </h2>
 
-          <p className="mb-4 sm:mb-7 leading-relaxed hidden xs:block sm:block"
-            style={{ fontSize: 'clamp(11px, 2vw, 14px)', color: 'rgba(255,255,255,0.5)' }}>
+          {/* Subtitle */}
+          <p className="mb-5 leading-relaxed line-clamp-2"
+            style={{
+              fontSize: 'clamp(11px, 1.8vw, 13px)',
+              color: 'rgba(255,255,255,0.5)',
+            }}>
             {b.subtitle || b.sub}
           </p>
 
-          <Link to={b.link || '/shop'}
-            className="btn-shine inline-flex items-center gap-2 font-bold text-white rounded-xl group transition-all hover:-translate-y-0.5"
+          {/* CTA */}
+          <Link
+            to={b.link || '/shop'}
+            className="btn-shine inline-flex items-center gap-2 font-bold text-white rounded-xl w-fit group transition-all hover:-translate-y-0.5"
             style={{
               background: b.accent,
-              boxShadow: `0 6px 24px ${b.accent}55`,
-              padding: 'clamp(8px,2vw,14px) clamp(14px,3vw,28px)',
-              fontSize: 'clamp(12px,2vw,14px)',
+              boxShadow: `0 6px 20px ${b.accent}55`,
+              padding: '10px 24px',
+              fontSize: 13,
             }}>
-            {b.cta} <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+            {b.cta}
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
           </Link>
         </motion.div>
 
-        {/* Image — hidden on very small, visible sm+ */}
-        <motion.div key={`i-${cur}`}
-          initial={{ opacity: 0, scale: 0.7, rotate: -8 * dir }}
+        {/* Right — зураг: тогтмол хэмжээ, emoji байхгүй */}
+        <motion.div
+          key={`i-${cur}`}
+          initial={{ opacity: 0, scale: 0.72, rotate: -8 * dir }}
           animate={{ opacity: 1, scale: 1, rotate: 0 }}
           transition={{ duration: 0.6, type: 'spring', stiffness: 160, damping: 18 }}
-          className="flex-shrink-0 flex items-center justify-center hidden xs:flex sm:flex">
+          // Зургийн хэсэг: текстийн өргөнтэй ойролцоо
+          className="flex-shrink-0 flex items-center justify-center"
+          style={{ width: '38%', height: '100%' }}>
+
           {b.image_url ? (
-            <img src={b.image_url} alt=""
-              className="object-contain animate-float"
+            <img
+              src={b.image_url}
+              alt=""
+              className="animate-float object-contain"
               style={{
-                height: 'clamp(90px, 20vw, 240px)',
+                // Тогтмол өндөр — banner-ийн өндрийн 85%
+                height: 240,
                 width: 'auto',
-                filter: `drop-shadow(0 20px 40px ${b.accent}55)`,
-              }} />
+                maxWidth: '100%',
+                filter: `drop-shadow(0 24px 40px ${b.accent}66)`,
+              }}
+            />
           ) : (
-            <div className="animate-float select-none"
-              style={{ fontSize: 'clamp(60px, 14vw, 120px)', lineHeight: 1, filter: 'drop-shadow(0 12px 28px rgba(0,0,0,0.4))' }}>
-              {b.emoji}
-            </div>
+            // Зураг байхгүй бол хоосон — emoji харагдахгүй
+            null
           )}
         </motion.div>
       </div>
 
       {/* Dots */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5" style={{ zIndex: 3 }}>
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5" style={{ zIndex: 3 }}>
         {bannerList.map((_: any, i: number) => (
-          <button key={i} onClick={() => { setDir(i > cur ? 1 : -1); setCur(i); }}
+          <button
+            key={i}
+            onClick={() => { setDir(i > cur ? 1 : -1); setCur(i); }}
             className="rounded-full transition-all duration-300"
-            style={{ width: i === cur ? 24 : 7, height: 7, background: i === cur ? b.accent : 'rgba(255,255,255,0.3)' }} />
+            style={{
+              width: i === cur ? 24 : 7,
+              height: 7,
+              background: i === cur ? b.accent : 'rgba(255,255,255,0.3)',
+              boxShadow: i === cur ? `0 0 8px ${b.accent}` : 'none',
+            }}
+          />
         ))}
       </div>
     </div>
