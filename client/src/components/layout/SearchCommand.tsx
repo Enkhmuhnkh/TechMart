@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Clock, TrendingUp, ArrowRight, Sparkles, ChevronRight } from 'lucide-react';
@@ -134,24 +135,27 @@ export function SearchCommand({ open, onClose }: SearchCommandProps) {
     }
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {open && (
         <>
-          {/* ── Backdrop ── */}
+          {/* ── Backdrop — portal-д render хийснээр stacking context асуудал шийдэгдэнэ ── */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[90]"
-            style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)' }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9000,
+              background: 'rgba(0,0,0,0.55)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
             onClick={onClose}
           />
 
           {/* ── Panel wrapper ── */}
-          <div className="fixed inset-0 z-[91] flex flex-col md:items-center"
-            style={{ pointerEvents: 'none' }}>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 9001, display: 'flex', flexDirection: 'column', alignItems: 'center', pointerEvents: 'none' }}>
 
             {/* Mobile: slide up from bottom. Desktop: drop from top center */}
             <motion.div
@@ -577,6 +581,7 @@ export function SearchCommand({ open, onClose }: SearchCommandProps) {
           </div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body
   );
 }
