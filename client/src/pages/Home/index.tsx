@@ -374,37 +374,72 @@ function SectionHeader({ sub, title, link }: { sub: string; title: string; link?
 // ── Categories ────────────────────────────────────────────────────────────────
 function CategoriesRow() {
   const { data: cats, isLoading } = useCategories();
+
+  const CAT_COLOR: Record<string, { color: string; bg: string }> = {
+    laptops:      { color: '#6C63FF', bg: 'rgba(108,99,255,0.08)' },
+    phones:       { color: '#00D4AA', bg: 'rgba(0,212,170,0.08)' },
+    smartphones:  { color: '#00D4AA', bg: 'rgba(0,212,170,0.08)' },
+    tablets:      { color: '#06B6D4', bg: 'rgba(6,182,212,0.08)' },
+    monitors:     { color: '#8B5CF6', bg: 'rgba(139,92,246,0.08)' },
+    keyboards:    { color: '#F59E0B', bg: 'rgba(245,158,11,0.08)' },
+    mice:         { color: '#EF4444', bg: 'rgba(239,68,68,0.08)' },
+    earbuds:      { color: '#EC4899', bg: 'rgba(236,72,153,0.08)' },
+    headphones:   { color: '#EC4899', bg: 'rgba(236,72,153,0.08)' },
+    smartwatches: { color: '#10B981', bg: 'rgba(16,185,129,0.08)' },
+    gpus:         { color: '#F97316', bg: 'rgba(249,115,22,0.08)' },
+    storage:      { color: '#6C63FF', bg: 'rgba(108,99,255,0.08)' },
+    accessories:  { color: '#9998B0', bg: 'rgba(153,152,176,0.08)' },
+  };
+
   return (
     <section className="py-7">
       <SectionHeader sub="Ангилал" title="Ангилалаар хайх" link="/shop" />
-      {/* Mobile: 4 col. sm: 6. md: 8 */}
+
       <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 sm:gap-3">
         {isLoading
-          ? Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton rounded-2xl" style={{ height: 'clamp(72px,18vw,96px)' }} />)
-          : cats?.map((cat, i) => (
-            <motion.div key={cat.id}
-              initial={{ opacity: 0, y: 16, scale: 0.9 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              transition={{ delay: i * 0.04, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
-              <Link to={`/shop?category=${cat.slug}`}
-                className="relative flex flex-col items-center gap-1.5 py-3 px-1 rounded-2xl text-center transition-all duration-300 hover:-translate-y-1 group overflow-hidden border active:scale-95"
-                style={{ background: 'var(--surface-0)', borderColor: 'var(--border)' }}>
-                {/* Hover bg */}
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-2xl"
-                  style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.07), rgba(168,85,247,0.07))' }} />
-                <span className="relative z-10 transition-transform duration-300 group-hover:scale-125"
-                  style={{ fontSize: 'clamp(18px, 5vw, 26px)' }}>
-                  {CATEGORY_ICONS[cat.slug] || '📦'}
-                </span>
-                <span className="relative z-10 font-semibold leading-tight group-hover:text-brand-primary transition-colors"
-                  style={{ fontSize: 'clamp(9px, 2.2vw, 12px)', color: 'var(--text-secondary)' }}>
-                  {cat.name}
-                </span>
-              </Link>
-            </motion.div>
-          ))}
+          ? Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="skeleton rounded-2xl" style={{ height: 72 }} />
+            ))
+          : cats?.map((cat, i) => {
+              const s = CAT_COLOR[cat.slug] || { color: '#9998B0', bg: 'rgba(153,152,176,0.08)' };
+              return (
+                <motion.div key={cat.id}
+                  initial={{ opacity: 0, y: 16, scale: 0.92 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ delay: i * 0.04, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+                  <Link
+                    to={`/shop?category=${cat.slug}`}
+                    className="flex items-center justify-center py-4 px-2 rounded-2xl text-center
+                               transition-all duration-200 hover:-translate-y-1 active:scale-95 border"
+                    style={{ background: 'var(--surface-0)', borderColor: 'var(--border)' }}
+                    onMouseEnter={e => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = s.bg;
+                      el.style.borderColor = s.color + '50';
+                    }}
+                    onMouseLeave={e => {
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'var(--surface-0)';
+                      el.style.borderColor = 'var(--border)';
+                    }}>
+                    <span
+                      className="font-semibold leading-tight transition-colors duration-200"
+                      style={{
+                        fontSize: 'clamp(10px, 2.2vw, 12px)',
+                        color: 'var(--text-secondary)',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = s.color; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = 'var(--text-secondary)'; }}>
+                      {cat.name}
+                    </span>
+                  </Link>
+                </motion.div>
+              );
+            })}
       </div>
-      <div className="mt-7 h-px" style={{ background: 'linear-gradient(to right, transparent, var(--border), transparent)' }} />
+
+      <div className="mt-7 h-px"
+        style={{ background: 'linear-gradient(to right, transparent, var(--border), transparent)' }} />
     </section>
   );
 }
