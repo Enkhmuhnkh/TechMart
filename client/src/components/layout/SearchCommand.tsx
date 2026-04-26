@@ -110,8 +110,9 @@ export function SearchCommand({ open, onClose }: SearchCommandProps) {
 
   const goTo = useCallback((path: string, q?: string) => {
     if (q) add(q);
-    onClose(); setQuery('');
-    setTimeout(() => navigate(path), 20);
+    navigate(path);
+    setQuery('');
+    setTimeout(() => onClose(), 150);
   }, [add, onClose, navigate]);
 
   const handleSubmit = useCallback((e?: React.FormEvent) => {
