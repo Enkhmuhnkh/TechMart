@@ -193,7 +193,7 @@ function HeroBanner() {
   return (
     // Тогтмол өндөр — текстийн урт хамаарахгүй
     <div className="relative overflow-hidden rounded-2xl"
-      style={{ background: b.bg, height: 300 }}>
+      style={{ background: b.bg, height: 400 }}>
 
       {/* Background image */}
       {b.bg_image_url && (
