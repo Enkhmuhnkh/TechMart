@@ -170,4 +170,22 @@ export const adminApi = {
   getSettings: () => apiClient.get('/admin/settings').then(r => r.data.data),
   saveSettings: (data: Record<string, string>) => apiClient.post('/admin/settings', data).then(r => r.data),
   getSaleProducts: () => apiClient.get('/admin/settings/sale-products').then(r => r.data.data),
+
+  //Payment
+  getPaymentGateways: () => apiClient.get('/payments/gateways').then(r => r.data.data),
+
+  savePaymentGateway: (provider: string, config: object, isActive: boolean, isSandbox: boolean) =>
+  apiClient.post('/payments/gateways', { provider, config, is_active: isActive, is_sandbox: isSandbox }).then(r => r.data),
+};
+
+//-----PaymentApi-------------------------------------
+export const paymentsApi = {
+  createQPay: (orderId: string, amount: number) =>
+    apiClient.post('/payments/qpay/create', { orderId, amount }).then(r => r.data.data),
+
+  checkStatus: (invoiceId: string) =>
+    apiClient.get(`/payments/qpay/status/${invoiceId}`).then(r => r.data.data),
+
+  getByOrder: (orderId: string) =>
+    apiClient.get(`/payments/order/${orderId}`).then(r => r.data.data),
 };
