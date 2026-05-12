@@ -19,11 +19,15 @@ import reviewRoutes from './modules/reviews/reviews.routes';
 import wishlistRoutes from './modules/wishlist/wishlist.routes';
 import aiRoutes from './modules/ai/ai.routes';
 import adminRoutes from './modules/admin/admin.routes';
+import paymentRoutes from './modules/payments/payment.routes';
 
 const app = express();
 
 // Security
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+
+//Payment
+app.use('/api/payments', paymentRoutes);
 
 // CORS
 app.use(cors({
