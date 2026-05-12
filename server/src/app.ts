@@ -26,11 +26,16 @@ const app = express();
 // Security
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-//Payment
-app.use('/api/payments', paymentRoutes);
-
-// CORS
+// CORS — бүх route-ын өмнө байх ёстой
 app.use(cors({
+  origin: env.CLIENT_URL,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+}));
+
+// Preflight — бүх OPTIONS request-т CORS header явуулна
+app.options('*', cors({
   origin: env.CLIENT_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -52,7 +57,10 @@ if (env.NODE_ENV !== 'test') {
 }
 
 // Static files (uploads)
-app.use('/uploads', express.static(path.join(process.cwd(), env.UPLOAD_DIR)));
+app.use('/uploads', (_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(path.join(process.cwd(), env.UPLOAD_DIR)));
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok', timestamp: new Date().toISOString() }));
@@ -68,6 +76,7 @@ app.use('/api/reviews', reviewRoutes);
 app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // 404
 app.use((_req, res) => {
