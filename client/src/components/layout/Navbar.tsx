@@ -59,7 +59,7 @@ export function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Single row — flex-nowrap, no wrap */}
-        <div className="flex items-center h-14 gap-2 flex-nowrap overflow-hidden">
+        <div className="flex items-center h-14 gap-2 flex-nowrap">
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 flex-shrink-0">
