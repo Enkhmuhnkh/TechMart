@@ -1,37 +1,70 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Home, ShoppingBag, Sparkles, ShoppingCart, User } from 'lucide-react';
 import { Navbar } from '../components/layout/Navbar';
 import { Footer } from '../components/layout/Footer';
 import { CartDrawer } from '../components/layout/CartDrawer';
-import { Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useCartStore, useAuthStore, useUIStore } from '../store';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '../api';
+import { cn } from '../utils';
 
-function FloatingAIButton() {
+// ── Announcement bar ───────────────────────────────────────────────────────────
+function AnnouncementBar() {
+  const { theme } = useUIStore();
+  const { data: settings } = useQuery({
+    queryKey: ['store-settings'],
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  if (!settings?.announcement) return null;
+
+  return (
+    <motion.div
+      initial={{ height: 0, opacity: 0 }}
+      animate={{ height: 'auto', opacity: 1 }}
+      className="announcement-bar"
+    >
+      <span className="animate-live inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
+        style={{ background: theme === 'dark' ? 'var(--ink)' : 'var(--lime)' }} />
+      <span>{settings.announcement}</span>
+    </motion.div>
+  );
+}
+
+// ── Floating AI button ─────────────────────────────────────────────────────────
+function FloatingAI() {
   const location = useLocation();
-  // Hide on AI page
+  const { theme } = useUIStore();
   if (location.pathname === '/ai') return null;
+
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ opacity: 0, scale: 0, y: 20 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        transition={{ delay: 1.5, type: 'spring', stiffness: 260, damping: 20 }}
-        className="fixed bottom-6 right-6 z-40"
+        initial={{ scale: 0, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        transition={{ delay: 2, type: 'spring', stiffness: 260, damping: 22 }}
+        className="fixed bottom-20 right-4 sm:bottom-8 sm:right-6 z-40"
       >
         <Link to="/ai">
           <motion.div
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.92 }}
-            className="relative flex items-center gap-2.5 px-4 py-3 rounded-2xl text-white text-sm font-semibold shadow-xl cursor-pointer"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.91 }}
+            className="relative flex items-center gap-2 px-4 py-2.5 rounded-full text-xs font-medium shadow-lg"
             style={{
-              background: 'linear-gradient(135deg, #6C63FF, #a855f7)',
-              boxShadow: '0 8px 32px rgba(108,99,255,0.5)',
+              background: theme === 'dark' ? 'var(--lime)' : 'var(--ink)',
+              color: theme === 'dark' ? 'var(--ink)' : 'var(--lime)',
+              fontFamily: "'DM Sans', sans-serif",
+              boxShadow: theme === 'dark' ? 'var(--shadow-lime)' : 'var(--shadow-md)',
             }}
           >
-            {/* Pulse ring */}
-            <span className="absolute inset-0 rounded-2xl animate-ping opacity-20"
-              style={{ background: 'linear-gradient(135deg, #6C63FF, #a855f7)' }} />
-            <Sparkles className="w-4 h-4 relative z-10" />
+            {/* Ping */}
+            <span className="absolute inset-0 rounded-full animate-ping opacity-15"
+              style={{ background: theme === 'dark' ? 'var(--lime)' : 'var(--ink)' }} />
+            <Sparkles className="w-3.5 h-3.5 relative z-10" />
             <span className="relative z-10 hidden sm:block">AI Туслагч</span>
+            <span className="relative z-10 sm:hidden">AI</span>
           </motion.div>
         </Link>
       </motion.div>
@@ -39,16 +72,91 @@ function FloatingAIButton() {
   );
 }
 
-export function RootLayout() {
+// ── Mobile bottom navigation ───────────────────────────────────────────────────
+function BottomNav() {
+  const location = useLocation();
+  const { itemCount } = useCartStore();
+  const { isAuthenticated } = useAuthStore();
+  const { theme } = useUIStore();
+  const count = itemCount();
+
+  // Hide on certain pages
+  const hidden = ['/ai', '/checkout', '/login', '/register'].includes(location.pathname);
+  if (hidden) return null;
+
+  const isActive = (path: string) => {
+    if (path === '/') return location.pathname === '/';
+    return location.pathname.startsWith(path);
+  };
+
+  const tabs = [
+    { path: '/', icon: Home, label: 'Нүүр' },
+    { path: '/shop', icon: ShoppingBag, label: 'Дэлгүүр' },
+    { path: '/ai', icon: Sparkles, label: 'AI' },
+    { path: '/cart', icon: ShoppingCart, label: 'Сагс', badge: count },
+    { path: isAuthenticated ? '/profile' : '/login', icon: User, label: isAuthenticated ? 'Профайл' : 'Нэвтрэх' },
+  ];
+
   return (
-    <div className="flex flex-col min-h-screen" style={{ background: 'var(--surface-0)' }}>
+    <nav className="bottom-nav">
+      {tabs.map(tab => (
+        <Link
+          key={tab.path}
+          to={tab.path}
+          className={cn('bottom-nav-item', isActive(tab.path) && 'active')}
+        >
+          <div className="relative">
+            <tab.icon className={cn('transition-all duration-200', isActive(tab.path) ? 'scale-110' : 'scale-100')} />
+            {tab.badge ? (
+              <motion.span
+                key={tab.badge}
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: 'spring', stiffness: 400 }}
+                className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center text-white"
+                style={{
+                  fontSize: '8px',
+                  fontFamily: "'DM Mono', monospace",
+                  background: theme === 'dark' ? 'var(--lime)' : 'var(--ink)',
+                  color: theme === 'dark' ? 'var(--ink)' : 'var(--bg)',
+                }}
+              >
+                {tab.badge > 9 ? '9+' : tab.badge}
+              </motion.span>
+            ) : null}
+          </div>
+          <span style={{ fontSize: '10px' }}>{tab.label}</span>
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+// ── Root Layout ─────────────────────────────────────────────────────────────
+export function RootLayout() {
+  const location = useLocation();
+
+  return (
+    <div className="flex flex-col min-h-screen" style={{ background: 'var(--bg)' }}>
+      <AnnouncementBar />
       <Navbar />
       <main className="flex-1">
-        <Outlet />
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
       <Footer />
       <CartDrawer />
-      <FloatingAIButton />
+      <BottomNav />
+      <FloatingAI />
     </div>
   );
 }
