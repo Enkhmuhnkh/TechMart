@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../../api';
 import { formatPrice, effectivePrice } from '../../../utils';
-import { Plus, Pencil, Trash2, X, Upload, Package } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Upload, Package, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 interface SpecRow { key: string; value: string; group: string; }
@@ -326,8 +326,11 @@ export default function AdminProducts() {
       </div>
 
       <div className="card p-4">
-        <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-          placeholder="Бүтээгдэхүүн хайх..." className="input text-sm max-w-sm" />
+        <div className="relative max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-tertiary)' }} />
+          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+            placeholder="Бүтээгдэхүүн хайх..." className="input text-sm pl-10" />
+        </div>
       </div>
 
       <div className="card overflow-hidden">
@@ -380,7 +383,7 @@ export default function AdminProducts() {
                           </p>
                         </div>
                       </td>
-                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{p.category_name || '—'}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{p.category_name_mn || p.category_name || '—'}</td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>{p.brand_name || '—'}</td>
                       <td className="px-4 py-3">
                         <p className="font-semibold text-brand-primary text-xs">

@@ -62,8 +62,8 @@ export async function findAll(filters: ProductFilters) {
   vals.push(limit, offset);
   const { rows } = await query(
     `SELECT p.id, p.name, p.name_mn, p.slug, p.price, p.sale_price,
-            p.stock_quantity, p.created_at,
-            c.name as category_name, c.slug as category_slug,
+            p.stock_quantity, p.status, p.created_at,
+            c.name as category_name, c.name_mn as category_name_mn, c.slug as category_slug,
             b.name as brand_name,
             (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
      FROM products p

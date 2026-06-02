@@ -15,7 +15,7 @@ export function formatPrice(amount: number, currency = 'MNT', locale = 'mn-MN'):
   return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
 }
 
-export function formatDate(dateStr: string, locale = 'en-US'): string {
+export function formatDate(dateStr: string, locale = 'mn-MN'): string {
   return new Intl.DateTimeFormat(locale, {
     year: 'numeric', month: 'short', day: 'numeric',
   }).format(new Date(dateStr));
@@ -24,12 +24,12 @@ export function formatDate(dateStr: string, locale = 'en-US'): string {
 export function timeAgo(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return 'дөнгөж сая';
+  if (mins < 60) return `${mins} мин өмнө`;
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return `${hrs} цаг өмнө`;
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return `${days} өдөр өмнө`;
   return formatDate(dateStr);
 }
 

@@ -67,19 +67,30 @@ export default function AdminDashboard() {
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="card p-4">
           <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--text-primary)' }}>Сарын орлого (сая ₮)</h3>
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={revenueData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
-              <YAxis tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} width={30} />
-              <Tooltip contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }} />
-              <Line type="monotone" dataKey="орлого" stroke="#6C63FF" strokeWidth={2.5} dot={false} />
-            </LineChart>
-          </ResponsiveContainer>
+          {revenueData.length === 0 ? (
+            <div className="flex items-center justify-center h-[200px]" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-sm">Захиалгын мэдээлэл байхгүй байна</p>
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={revenueData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} />
+                <YAxis tick={{ fontSize: 11, fill: 'var(--text-secondary)' }} width={30} />
+                <Tooltip contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }} />
+                <Line type="monotone" dataKey="орлого" stroke="#6C63FF" strokeWidth={2.5} dot={false} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
         </div>
 
         <div className="card p-4">
           <h3 className="font-semibold text-sm mb-3" style={{ color: 'var(--text-primary)' }}>Ангилалаар зарагдсан</h3>
+          {categoryData.length === 0 ? (
+            <div className="flex items-center justify-center h-[200px]" style={{ color: 'var(--text-tertiary)' }}>
+              <p className="text-sm">Захиалгын мэдээлэл байхгүй байна</p>
+            </div>
+          ) : (
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={categoryData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -89,6 +100,7 @@ export default function AdminDashboard() {
               <Bar dataKey="зарагдсан" fill="#6C63FF" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
+          )}
         </div>
       </div>
 

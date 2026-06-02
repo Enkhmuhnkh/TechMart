@@ -118,7 +118,7 @@ export default function AdminUsers() {
                           }`}
                         >
                           {u.role === 'admin'
-                            ? <><ShieldOff className="w-3.5 h-3.5" /> Admin болгох</> // remove admin
+                            ? <><ShieldOff className="w-3.5 h-3.5" /> Эрх хасах</>
                             : <><Shield className="w-3.5 h-3.5" /> Admin болгох</>
                           }
                         </button>
