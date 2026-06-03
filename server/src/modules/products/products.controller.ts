@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import * as productsService from './products.service';
 import { cloudinary } from '../../config/cloudinary';
 
+interface UploadedFile { buffer: Buffer; }
+
 export async function list(req: Request, res: Response, next: NextFunction) {
   try {
     const result = await productsService.listProducts({
@@ -75,7 +77,7 @@ async function uploadToCloudinary(buffer: Buffer): Promise<string> {
 
 export async function uploadImage(req: Request, res: Response, next: NextFunction) {
   try {
-    const files = (req.files as Express.Multer.File[]) || (req.file ? [req.file] : []);
+    const files = (req.files as UploadedFile[]) || (req.file ? [req.file as UploadedFile] : []);
     if (!files.length) throw new Error('No file uploaded');
 
     const urls: string[] = [];
