@@ -21,7 +21,7 @@ function AnnouncementBar() {
   return (
     <div className="announcement-bar">
       <span className="animate-live inline-block w-1.5 h-1.5 rounded-full flex-shrink-0"
-        style={{ background: theme === 'dark' ? 'var(--ink)' : 'var(--lime)' }} />
+        style={{ background: theme === 'dark' ? '#818CF8' : '#6366F1' }} />
       <span>{settings.announcement}</span>
     </div>
   );
@@ -64,8 +64,8 @@ function BottomNav() {
                 className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full flex items-center justify-center"
                 style={{
                   fontSize: '8px', fontFamily: "'DM Mono', monospace",
-                  background: theme === 'dark' ? 'var(--lime)' : 'var(--ink)',
-                  color: theme === 'dark' ? 'var(--ink)' : 'var(--bg)',
+                  background: theme === 'dark' ? '#6366F1' : 'var(--ink)',
+                  color: 'white',
                 }}>
                 {tab.badge > 9 ? '9+' : tab.badge}
               </motion.span>

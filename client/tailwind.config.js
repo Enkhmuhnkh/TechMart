@@ -6,20 +6,21 @@ export default {
     extend: {
       colors: {
         brand: {
-          primary: '#6C63FF',
+          primary: '#6366F1',
           secondary: '#00D4AA',
-          light: '#8B85FF',
+          light:   '#818CF8',
+          accent:  '#F43F5E',
         },
         surface: {
-          0: '#FFFFFF',
-          1: '#F6F6F8',
-          2: '#EDEDF2',
+          0: '#FAFAFA',
+          1: '#F4F4F5',
+          2: '#E4E4E7',
         },
         dark: {
-          0: '#0F0F13',
-          1: '#18181E',
-          2: '#222228',
-          3: '#2A2A35',
+          0: '#09090B',
+          1: '#18181B',
+          2: '#27272A',
+          3: '#3F3F46',
         },
       },
       fontFamily: {

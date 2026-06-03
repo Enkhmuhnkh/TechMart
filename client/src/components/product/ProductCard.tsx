@@ -159,17 +159,17 @@ export function ProductCard({ product, className }: Props) {
               whileTap={{ scale: 0.85 }}
               className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0 disabled:opacity-30 transition-all ripple-btn"
               style={{
-                background: outOfStock ? 'var(--bg-3)' : theme === 'dark' ? 'var(--lime)' : 'var(--ink)',
-                boxShadow: outOfStock ? 'none' : theme === 'dark' ? 'var(--shadow-lime)' : 'var(--shadow-sm)',
+                background: outOfStock ? 'var(--bg-3)' : theme === 'dark' ? '#6366F1' : 'var(--ink)',
+                boxShadow: outOfStock ? 'none' : theme === 'dark' ? '0 4px 16px rgba(99,102,241,0.4)' : 'var(--shadow-sm)',
               }}
             >
               {isPending ? (
                 <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin"
-                  style={{ color: theme === 'dark' ? 'var(--ink)' : 'var(--bg)' }} />
+                  style={{ color: 'white' }} />
               ) : (
                 <ShoppingCart
                   className="w-4 h-4"
-                  style={{ color: outOfStock ? 'var(--ink-4)' : theme === 'dark' ? 'var(--ink)' : 'var(--bg)' }}
+                  style={{ color: outOfStock ? 'var(--ink-4)' : 'white' }}
                 />
               )}
             </motion.button>
