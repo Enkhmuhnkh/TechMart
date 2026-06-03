@@ -33,7 +33,7 @@ export default function CheckoutPage() {
   // Close cart drawer when checkout page opens
   useEffect(() => {
     closeCart();
-  }, []);
+  }, [closeCart]);
 
   const [step, setStep] = useState<Step>('shipping');
   const [paymentMethod, setPaymentMethod] = useState('cash');
@@ -256,11 +256,11 @@ export default function CheckoutPage() {
                 </button>
               : <div />}
             {step !== 'confirm'
-              ? <button onClick={handleNext} className="btn-primary flex items-center gap-2">
+              ? <button type="button" onClick={handleNext} className="btn-primary flex items-center gap-2 active:scale-95 transition-all duration-200">
                   Үргэлжлэх <ChevronRight className="w-4 h-4" />
                 </button>
-              : <button onClick={handlePlaceOrder} disabled={isPending}
-                  className="btn-primary flex items-center gap-2 px-8 disabled:opacity-60">
+              : <button type="button" onClick={handlePlaceOrder} disabled={isPending}
+                  className="btn-primary flex items-center gap-2 px-8 disabled:opacity-60 active:scale-95 transition-all duration-200">
                   {isPending ? 'Захиалга өгч байна...' : t('checkout.placeOrder')}
                 </button>}
           </div>

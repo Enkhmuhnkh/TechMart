@@ -162,14 +162,16 @@
     position: relative;
     overflow: hidden;
     transition:
-      transform 0.2s var(--spring),
-      box-shadow 0.2s var(--ease-out),
-      background 0.15s,
-      filter 0.15s;
+      transform 0.25s var(--spring),
+      box-shadow 0.25s var(--ease-out),
+      background 0.2s,
+      opacity 0.2s,
+      filter 0.2s;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
   }
-  .btn:active { transform: scale(0.95) !important; }
+  .btn:hover  { opacity: 0.92; }
+  .btn:active { transform: scale(0.95) !important; opacity: 1; }
 
   .btn-primary {
     background: var(--ink);
@@ -178,14 +180,21 @@
   .btn-primary:hover {
     transform: scale(1.02) translateY(-1px);
     box-shadow: var(--shadow-md);
+    opacity: 1;
     filter: brightness(1.08);
   }
+  .btn-primary:active {
+    transform: scale(0.96) !important;
+    box-shadow: var(--shadow-sm);
+  }
   .dark .btn-primary {
-    background: var(--lime);
-    color: var(--bg);
+    background: #6366F1;
+    color: white;
   }
   .dark .btn-primary:hover {
-    box-shadow: var(--shadow-lime);
+    box-shadow: 0 6px 24px rgba(99,102,241,0.45);
+    filter: brightness(1.1);
+    opacity: 1;
   }
 
   .btn-secondary {
@@ -261,13 +270,13 @@
   }
   .input::placeholder { color: var(--ink-4); }
   .input:focus {
-    border-color: var(--purple);
+    border-color: #6366F1;
     background: var(--bg);
-    box-shadow: 0 0 0 3px rgba(107,92,231,0.12);
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.12);
   }
   .dark .input:focus {
-    border-color: var(--lime);
-    box-shadow: 0 0 0 3px rgba(200,255,87,0.1);
+    border-color: #6366F1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
   }
 
   /* ── Badge ── */

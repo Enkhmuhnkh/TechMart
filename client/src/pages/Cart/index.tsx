@@ -1,12 +1,15 @@
 // ─── CART PAGE ─────────────────────────────────────────────────────────────
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Trash2, ShoppingBag } from 'lucide-react';
 import { useCart, useUpdateCartItem, useRemoveCartItem } from '../../hooks';
+import { useCartStore } from '../../store';
 import { formatPrice, effectivePrice } from '../../utils';
 
 export default function CartPage() {
   const { t, i18n } = useTranslation();
+  const navigate = useNavigate();
+  const closeCart = useCartStore(s => s.closeCart);
   const { data: cart, isLoading } = useCart();
   const { mutate: update } = useUpdateCartItem();
   const { mutate: remove } = useRemoveCartItem();
@@ -69,7 +72,13 @@ export default function CartPage() {
             <span style={{ color: 'var(--text-primary)' }}>Total</span>
             <span className="text-brand-primary">{formatPrice(cart?.total || 0)}</span>
           </div>
-          <Link to="/checkout" className="btn-primary w-full">{t('cart.checkout')}</Link>
+          <button
+            type="button"
+            onClick={() => { closeCart(); navigate('/checkout'); }}
+            className="btn-primary w-full"
+          >
+            {t('cart.checkout')}
+          </button>
           <Link to="/shop" className="btn-ghost w-full text-center text-sm">{t('cart.continueShopping')}</Link>
         </div>
       </div>

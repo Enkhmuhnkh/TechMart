@@ -230,9 +230,10 @@ export default function ProductDetailPage() {
           {/* Actions */}
           <div className="flex gap-2 flex-wrap">
             <button
+              type="button"
               disabled={isOutOfStock || isPending}
               onClick={() => addToCart({ productId: product.id, quantity: qty })}
-              className="btn-primary flex items-center gap-2 flex-1 min-w-40 justify-center disabled:opacity-50">
+              className="btn-primary flex items-center gap-2 flex-1 min-w-40 justify-center disabled:opacity-50 active:scale-95 transition-all duration-200">
               <ShoppingCart className="w-4 h-4" />
               {isOutOfStock ? 'Нөөц дууссан' : 'Сагсанд нэмэх'}
             </button>

@@ -26,7 +26,7 @@ export function CartDrawer() {
   // Close when route changes
   useEffect(() => {
     closeCart();
-  }, [location.pathname]);
+  }, [location.pathname, closeCart]);
 
   const handleCheckout = () => {
     closeCart();
@@ -72,8 +72,9 @@ export function CartDrawer() {
                 )}
               </div>
               <button
-                onClick={closeCart}
-                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[var(--surface-2)] transition-colors"
+                type="button"
+                onClick={(e) => { e.stopPropagation(); closeCart(); }}
+                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-[var(--surface-2)] active:scale-90 transition-all duration-200"
               >
                 <X className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
               </button>
@@ -89,7 +90,7 @@ export function CartDrawer() {
                   </div>
                   <p className="font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Сагс хоосон байна</p>
                   <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>Бараа нэмж эхлээрэй</p>
-                  <button onClick={closeCart} className="btn-primary btn-sm">
+                  <button type="button" onClick={closeCart} className="btn-primary btn-sm">
                     Дэлгүүр хэсэх
                   </button>
                 </div>
@@ -153,8 +154,8 @@ export function CartDrawer() {
                   <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>Нийт дүн</span>
                   <span className="font-bold text-lg text-brand-primary">{formatPrice(cart?.total || 0)}</span>
                 </div>
-                <button onClick={handleCheckout} className="btn-primary w-full text-sm">
-                  Захиалга хийх
+                <button type="button" onClick={handleCheckout} className="btn-primary w-full text-sm">
+                  Захиалга хийх →
                 </button>
                 <Link to="/cart" onClick={closeCart}
                   className="block text-center text-sm hover:text-brand-primary transition-colors"
