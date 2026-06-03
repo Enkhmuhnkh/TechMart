@@ -22,7 +22,9 @@ router.post('/', requireAuth, requireAdmin, c.create);
 router.put('/:id', requireAuth, requireAdmin, c.update);
 router.delete('/:id', requireAuth, requireAdmin, c.remove);
 router.put('/:id/specs', requireAuth, requireAdmin, c.updateSpecs);
-router.post('/:id/images', requireAuth, requireAdmin, upload.single('image'), c.uploadImage);
+router.post('/:id/images', requireAuth, requireAdmin, upload.array('images', 10), c.uploadImage);
 router.delete('/:id/images/:imageId', requireAuth, requireAdmin, c.deleteImage);
+router.get('/:id/colors', requireAuth, requireAdmin, c.getColors);
+router.put('/:id/colors', requireAuth, requireAdmin, c.updateColors);
 
 export default router;

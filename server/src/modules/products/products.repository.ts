@@ -105,8 +105,12 @@ export async function findBySlug(slug: string) {
      ORDER BY r.created_at DESC LIMIT 10`,
     [product.id]
   );
+  const { rows: colors } = await query(
+    'SELECT * FROM product_colors WHERE product_id = $1 ORDER BY sort_order',
+    [product.id]
+  );
 
-  return { ...product, images, specs, reviews };
+  return { ...product, images, specs, reviews, colors };
 }
 
 export async function findByIds(ids: string[]) {
@@ -184,6 +188,9 @@ export async function upsertSpecs(productId: string, specs: Array<{key:string;va
 export async function addImage(productId: string, url: string, isPrimary = false) {
   const { rows: existing } = await query('SELECT COUNT(*) as c FROM product_images WHERE product_id = $1', [productId]);
   const sortOrder = parseInt((existing[0] as any).c);
+  if (isPrimary) {
+    await query('UPDATE product_images SET is_primary = false WHERE product_id = $1', [productId]);
+  }
   return queryOne(
     `INSERT INTO product_images (id, product_id, url, sort_order, is_primary)
      VALUES ($1,$2,$3,$4,$5) RETURNING *`,
@@ -191,6 +198,46 @@ export async function addImage(productId: string, url: string, isPrimary = false
   );
 }
 
+export async function addImages(productId: string, urls: string[]) {
+  const { rows: existing } = await query('SELECT COUNT(*) as c FROM product_images WHERE product_id = $1', [productId]);
+  const baseOrder = parseInt((existing[0] as any).c);
+  const isFirstBatch = baseOrder === 0;
+  const result = [];
+  for (let i = 0; i < urls.length; i++) {
+    const isPrimary = isFirstBatch && i === 0;
+    if (isPrimary) {
+      await query('UPDATE product_images SET is_primary = false WHERE product_id = $1', [productId]);
+    }
+    const row = await queryOne(
+      `INSERT INTO product_images (id, product_id, url, sort_order, is_primary)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [require('uuid').v4(), productId, urls[i], baseOrder + i, isPrimary]
+    );
+    result.push(row);
+  }
+  return result;
+}
+
 export async function deleteImage(imageId: string) {
   await query('DELETE FROM product_images WHERE id = $1', [imageId]);
+}
+
+export async function getColors(productId: string) {
+  const { rows } = await query(
+    'SELECT * FROM product_colors WHERE product_id = $1 ORDER BY sort_order',
+    [productId]
+  );
+  return rows;
+}
+
+export async function upsertColors(productId: string, colors: Array<{ name: string; hex: string }>) {
+  await query('DELETE FROM product_colors WHERE product_id = $1', [productId]);
+  for (let i = 0; i < colors.length; i++) {
+    await query(
+      `INSERT INTO product_colors (id, product_id, name, hex, sort_order)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [require('uuid').v4(), productId, colors[i].name, colors[i].hex, i]
+    );
+  }
+  return getColors(productId);
 }

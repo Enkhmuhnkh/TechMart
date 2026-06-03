@@ -63,22 +63,32 @@ export async function updateSpecs(req: Request, res: Response, next: NextFunctio
   } catch (err) { next(err); }
 }
 
+async function uploadToCloudinary(buffer: Buffer): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'techmart', resource_type: 'image', transformation: [{ width: 900, crop: 'limit', quality: 'auto:good' }] },
+      (err, result) => { if (err || !result) reject(err); else resolve(result.secure_url); }
+    );
+    stream.end(buffer);
+  });
+}
+
 export async function uploadImage(req: Request, res: Response, next: NextFunction) {
   try {
-    if (!req.file) throw new Error('No file uploaded');
+    const files = (req.files as Express.Multer.File[]) || (req.file ? [req.file] : []);
+    if (!files.length) throw new Error('No file uploaded');
 
-    // Upload to Cloudinary
-    const result = await new Promise<{ secure_url: string }>((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'techmart', resource_type: 'image', transformation: [{ width: 800, crop: 'limit', quality: 'auto' }] },
-        (err, result) => { if (err) reject(err); else resolve(result); }
-      );
-      stream.end(req.file!.buffer);
-    });
+    const urls: string[] = [];
+    for (const file of files) {
+      urls.push(await uploadToCloudinary(file.buffer));
+    }
 
-    const url = result.secure_url;
-    const image = await productsService.addImage(req.params.id, url, req.body.isPrimary === 'true');
-    res.json({ success: true, data: image });
+    if (urls.length === 1) {
+      const image = await productsService.addImage(req.params.id, urls[0], req.body.isPrimary === 'true');
+      return res.json({ success: true, data: image });
+    }
+    const images = await productsService.addImages(req.params.id, urls);
+    res.json({ success: true, data: images });
   } catch (err) { next(err); }
 }
 
@@ -86,5 +96,19 @@ export async function deleteImage(req: Request, res: Response, next: NextFunctio
   try {
     await productsService.deleteImage(req.params.imageId);
     res.json({ success: true, data: null });
+  } catch (err) { next(err); }
+}
+
+export async function getColors(req: Request, res: Response, next: NextFunction) {
+  try {
+    const colors = await productsService.getColors(req.params.id);
+    res.json({ success: true, data: colors });
+  } catch (err) { next(err); }
+}
+
+export async function updateColors(req: Request, res: Response, next: NextFunction) {
+  try {
+    const colors = await productsService.updateColors(req.params.id, req.body.colors || []);
+    res.json({ success: true, data: colors });
   } catch (err) { next(err); }
 }

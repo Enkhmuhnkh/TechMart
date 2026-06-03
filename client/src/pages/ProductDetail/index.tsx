@@ -45,10 +45,11 @@ export default function ProductDetailPage() {
     limit: 4,
   });
 
-  const [imgIndex, setImgIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<'specs' | 'reviews'>('specs');
-  const [qty, setQty] = useState(1);
-  const [reviewForm, setReviewForm] = useState({ rating: 0, body: '' });
+  const [imgIndex,    setImgIndex]    = useState(0);
+  const [activeTab,   setActiveTab]   = useState<'specs' | 'reviews'>('specs');
+  const [qty,         setQty]         = useState(1);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
+  const [reviewForm,  setReviewForm]  = useState({ rating: 0, body: '' });
   const [showReviewForm, setShowReviewForm] = useState(false);
 
   if (isLoading) return <ProductDetailSkeleton />;
@@ -64,6 +65,7 @@ export default function ProductDetailPage() {
   const price = effectivePrice(product.price, product.sale_price);
   const discount = discountPercent(product.price, product.sale_price);
   const images = product.images?.length ? product.images : (product.image_url ? [{ url: product.image_url, id: 'main' }] : []);
+  const colors: Array<{ id: string; name: string; hex: string }> = (product as any).colors || [];
   const specs = product.specs ? groupSpecsByGroup(product.specs) : {};
   const isOutOfStock = product.stock_quantity === 0;
   const isLowStock = product.stock_quantity > 0 && product.stock_quantity <= 5;
@@ -196,6 +198,42 @@ export default function ProductDetailPage() {
                   : 'Нөөцтэй'}
             </span>
           </div>
+
+          {/* Color selector */}
+          {colors.length > 0 && (
+            <div>
+              <p className="text-sm font-medium mb-2.5" style={{ color: 'var(--text-secondary)' }}>
+                Өнгө сонгох
+                {selectedColor && (
+                  <span className="ml-2 font-semibold" style={{ color: 'var(--text-primary)' }}>
+                    — {colors.find(c => c.id === selectedColor)?.name}
+                  </span>
+                )}
+              </p>
+              <div className="flex flex-wrap gap-2.5">
+                {colors.map(color => (
+                  <button
+                    key={color.id}
+                    type="button"
+                    onClick={() => setSelectedColor(prev => prev === color.id ? null : color.id)}
+                    title={color.name}
+                    className="relative w-8 h-8 rounded-full transition-transform hover:scale-110 active:scale-95"
+                    style={{
+                      background: color.hex,
+                      boxShadow: selectedColor === color.id
+                        ? `0 0 0 2px var(--bg), 0 0 0 4px ${color.hex}`
+                        : '0 0 0 1px rgba(0,0,0,0.15)',
+                    }}
+                  >
+                    {selectedColor === color.id && (
+                      <Check className="w-4 h-4 absolute inset-0 m-auto"
+                        style={{ color: parseInt(color.hex.replace('#',''), 16) > 0x888888 ? '#000' : '#fff' }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Key specs preview */}
           {product.specs && product.specs.slice(0, 4).map((s: any) => (

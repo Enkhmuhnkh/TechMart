@@ -132,12 +132,19 @@ export const adminApi = {
   updateSpecs: (id: string, specs: any[]) => apiClient.put(`/products/${id}/specs`, { specs }).then(r => r.data),
   uploadImage: (id: string, file: File, isPrimary: boolean) => {
     const fd = new FormData();
-    fd.append('image', file);
+    fd.append('images', file);
     fd.append('isPrimary', String(isPrimary));
+    return apiClient.post(`/products/${id}/images`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data.data);
+  },
+  uploadImages: (id: string, files: File[]) => {
+    const fd = new FormData();
+    files.forEach(f => fd.append('images', f));
     return apiClient.post(`/products/${id}/images`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data.data);
   },
   deleteImage: (productId: string, imageId: string) =>
     apiClient.delete(`/products/${productId}/images/${imageId}`).then(r => r.data),
+  updateColors: (id: string, colors: { name: string; hex: string }[]) =>
+    apiClient.put(`/products/${id}/colors`, { colors }).then(r => r.data.data),
 
   // Categories
   listCategories: () => apiClient.get('/categories').then(r => r.data.data),

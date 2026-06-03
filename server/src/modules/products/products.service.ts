@@ -63,8 +63,20 @@ export async function addImage(productId: string, url: string, isPrimary: boolea
   return repo.addImage(productId, url, isPrimary);
 }
 
+export async function addImages(productId: string, urls: string[]) {
+  return repo.addImages(productId, urls);
+}
+
 export async function deleteImage(imageId: string) {
   await repo.deleteImage(imageId);
+}
+
+export async function getColors(productId: string) {
+  return repo.getColors(productId);
+}
+
+export async function updateColors(productId: string, colors: Array<{ name: string; hex: string }>) {
+  return repo.upsertColors(productId, colors);
 }
 
 async function invalidateProductCache() {

@@ -786,6 +786,9 @@
 /* Dot separator */
 .dot-sep::before {
   content: '·';
+
+
+  
   margin: 0 6px;
   color: var(--ink-4);
 }

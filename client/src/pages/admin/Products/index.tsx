@@ -1,59 +1,86 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '../../../api';
 import { formatPrice, effectivePrice } from '../../../utils';
-import { Plus, Pencil, Trash2, X, Upload, Package, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, X, Upload, Package, Search, Palette } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface SpecRow { key: string; value: string; group: string; }
+interface SpecRow   { key: string; value: string; group: string; }
+interface ColorRow  { name: string; hex: string; }
+interface ImgPreview { file: File; url: string; }
 
 const SPEC_GROUPS = ['Performance', 'Display', 'Battery', 'Camera', 'Connectivity', 'Physical', 'Features', 'Software', 'General'];
+
+const PRESET_COLORS = [
+  { name: 'Midnight Black', hex: '#0D0D0D' },
+  { name: 'Titanium Gray',  hex: '#8C8C8C' },
+  { name: 'Starlight White',hex: '#F5F5F0' },
+  { name: 'Deep Purple',    hex: '#6B47D0' },
+  { name: 'Sky Blue',       hex: '#3B9EE0' },
+  { name: 'Rose Gold',      hex: '#C9956C' },
+  { name: 'Space Silver',   hex: '#C0C0C8' },
+  { name: 'Forest Green',   hex: '#2E7D44' },
+];
 
 function ProductModal({ product, categories, brands, onClose }: {
   product?: any; categories: any[]; brands: any[]; onClose: () => void;
 }) {
   const qc = useQueryClient();
   const isEdit = !!product;
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
-    name:            product?.name || '',
-    name_mn:         product?.name_mn || '',
-    category_id:     product?.category_id || '',
-    brand_id:        product?.brand_id || '',
-    price:           product?.price || '',
-    sale_price:      product?.sale_price || '',
-    stock_quantity:  product?.stock_quantity ?? 0,
-    description:     product?.description || '',
-    description_mn:  product?.description_mn || '',
-    status:          product?.status || 'active',
+    name:           product?.name || '',
+    name_mn:        product?.name_mn || '',
+    category_id:    product?.category_id || '',
+    brand_id:       product?.brand_id || '',
+    price:          product?.price || '',
+    sale_price:     product?.sale_price || '',
+    stock_quantity: product?.stock_quantity ?? 0,
+    description:    product?.description || '',
+    description_mn: product?.description_mn || '',
+    status:         product?.status || 'active',
   });
 
-  const [specs, setSpecs] = useState<SpecRow[]>(
+  const [specs,  setSpecs]  = useState<SpecRow[]>(
     product?.specs?.map((s: any) => ({ key: s.spec_key, value: s.spec_value, group: s.spec_group })) || []
   );
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState(product?.image_url || '');
+  const [colors, setColors] = useState<ColorRow[]>(
+    product?.colors?.map((c: any) => ({ name: c.name, hex: c.hex })) || []
+  );
+  // new image files queued for upload
+  const [newImages,    setNewImages]    = useState<ImgPreview[]>([]);
+  // existing images already in DB (edit mode)
+  const [existingImgs, setExistingImgs] = useState<any[]>(product?.images || []);
   const [loading, setLoading] = useState(false);
 
   const set = (k: string, v: any) => setForm(f => ({ ...f, [k]: v }));
-
-  // Монгол нэр → name автоматаар
   const handleNameMn = (v: string) => setForm(f => ({ ...f, name_mn: v, name: v }));
-
-  // Монгол тайлбар → description автоматаар
   const handleDescMn = (v: string) => setForm(f => ({ ...f, description_mn: v, description: v }));
 
-  const addSpec = () => setSpecs(s => [...s, { key: '', value: '', group: 'General' }]);
+  // ── Specs
+  const addSpec    = () => setSpecs(s => [...s, { key: '', value: '', group: 'General' }]);
   const removeSpec = (i: number) => setSpecs(s => s.filter((_, idx) => idx !== i));
-  const setSpec = (i: number, field: keyof SpecRow, val: string) =>
+  const setSpec    = (i: number, field: keyof SpecRow, val: string) =>
     setSpecs(s => s.map((sp, idx) => idx === i ? { ...sp, [field]: val } : sp));
 
-  const handleImage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
+  // ── Colors
+  const addColor = (preset?: ColorRow) =>
+    setColors(c => [...c, preset ?? { name: '', hex: '#6366F1' }]);
+  const removeColor  = (i: number) => setColors(c => c.filter((_, idx) => idx !== i));
+  const setColorField = (i: number, field: keyof ColorRow, val: string) =>
+    setColors(c => c.map((col, idx) => idx === i ? { ...col, [field]: val } : col));
+
+  // ── Images
+  const handleFilePick = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const previews: ImgPreview[] = files.map(f => ({ file: f, url: URL.createObjectURL(f) }));
+    setNewImages(prev => [...prev, ...previews]);
+    e.target.value = '';
   };
+  const removeNewImage      = (i: number) => setNewImages(p => p.filter((_, idx) => idx !== i));
+  const removeExistingImage = (id: string) => setExistingImgs(p => p.filter((img: any) => img.id !== id));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,36 +91,46 @@ function ProductModal({ product, categories, brands, onClose }: {
     try {
       const payload = {
         ...form,
-        name: form.name_mn,           // name = name_mn
-        description: form.description_mn, // description = description_mn
-        price: Number(form.price),
-        sale_price: form.sale_price ? Number(form.sale_price) : null,
+        name:           form.name_mn,
+        description:    form.description_mn,
+        price:          Number(form.price),
+        sale_price:     form.sale_price ? Number(form.sale_price) : null,
         stock_quantity: Number(form.stock_quantity),
       };
 
-      let prod;
+      let prod: any;
       if (isEdit) {
         prod = await adminApi.updateProduct(product.id, payload);
       } else {
         prod = await adminApi.createProduct(payload);
       }
 
-      if (imageFile && prod?.id) {
-        await adminApi.uploadImage(prod.id, imageFile, true);
+      const prodId = prod?.id || product?.id;
+
+      // Upload new images (batch)
+      if (newImages.length > 0 && prodId) {
+        await adminApi.uploadImages(prodId, newImages.map(p => p.file));
       }
 
-      if (prod?.id && specs.length > 0) {
-        const validSpecs = specs.filter(s => s.key && s.value);
-        if (validSpecs.length > 0) {
-          await adminApi.updateSpecs(prod.id, validSpecs.map((s, i) => ({
+      // Specs
+      if (prodId && specs.length > 0) {
+        const valid = specs.filter(s => s.key && s.value);
+        if (valid.length) {
+          await adminApi.updateSpecs(prodId, valid.map((s, i) => ({
             key: s.key, value: s.value, group: s.group, sort: i,
           })));
         }
       }
 
+      // Colors
+      if (prodId) {
+        const valid = colors.filter(c => c.name.trim());
+        await adminApi.updateColors(prodId, valid);
+      }
+
       qc.invalidateQueries({ queryKey: ['products'] });
       qc.invalidateQueries({ queryKey: ['admin-dashboard'] });
-      toast.success(isEdit ? 'Бүтээгдэхүүн шинэчлэгдлээ' : 'Бүтээгдэхүүн нэмэгдлээ! 🎉');
+      toast.success(isEdit ? 'Бүтээгдэхүүн шинэчлэгдлээ' : 'Бүтээгдэхүүн нэмэгдлээ!');
       onClose();
     } catch (err: any) {
       toast.error(err?.response?.data?.error?.message || 'Алдаа гарлаа');
@@ -101,6 +138,11 @@ function ProductModal({ product, categories, brands, onClose }: {
       setLoading(false);
     }
   };
+
+  const allPreviews = [
+    ...existingImgs.map((img: any) => ({ url: img.url, id: img.id, existing: true })),
+    ...newImages.map((p, i) => ({ url: p.url, id: `new-${i}`, existing: false })),
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto py-6 px-4"
@@ -112,31 +154,63 @@ function ProductModal({ product, categories, brands, onClose }: {
           <h2 className="font-display font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
             {isEdit ? 'Бүтээгдэхүүн засах' : 'Шинэ бүтээгдэхүүн нэмэх'}
           </h2>
-          <button onClick={onClose} className="btn-ghost rounded-xl p-2">
+          <button type="button" onClick={onClose} className="btn-ghost rounded-xl p-2">
             <X className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
 
-          {/* Зураг */}
-          <div className="flex gap-4 items-start">
-            <div className="w-24 h-24 rounded-2xl border-2 border-dashed flex items-center justify-center overflow-hidden flex-shrink-0 relative"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
-              {imagePreview
-                ? <img src={imagePreview} alt="" className="w-full h-full object-contain p-2" />
-                : <Package className="w-8 h-8" style={{ color: 'var(--text-tertiary)' }} />}
-              <input type="file" accept="image/*" onChange={handleImage} className="absolute inset-0 opacity-0 cursor-pointer" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-medium mb-1" style={{ color: 'var(--text-primary)' }}>Зураг оруулах</p>
-              <p className="text-xs mb-3" style={{ color: 'var(--text-tertiary)' }}>JPG, PNG, WEBP — max 5MB</p>
-              <label className="btn-ghost btn-sm cursor-pointer inline-flex items-center gap-2 border rounded-xl px-3 py-2"
-                style={{ borderColor: 'var(--border)' }}>
-                <Upload className="w-4 h-4" /> Зураг сонгох
-                <input type="file" accept="image/*" onChange={handleImage} className="hidden" />
+          {/* ── Зургууд (multiple) ── */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                Зургууд ({allPreviews.length})
               </label>
+              <button type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="btn-ghost btn-sm text-xs flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-brand-primary"
+                style={{ borderColor: 'var(--border)' }}>
+                <Upload className="w-3.5 h-3.5" /> Зураг нэмэх
+              </button>
+              <input ref={fileInputRef} type="file" accept="image/*" multiple
+                onChange={handleFilePick} className="hidden" />
             </div>
+
+            {allPreviews.length > 0 ? (
+              <div className="grid grid-cols-4 gap-2">
+                {allPreviews.map((img, i) => (
+                  <div key={img.id} className="relative group aspect-square rounded-xl overflow-hidden border"
+                    style={{ background: 'var(--surface-1)', borderColor: i === 0 ? '#6366F1' : 'var(--border)' }}>
+                    <img src={img.url} alt="" className="w-full h-full object-contain p-1.5" />
+                    {i === 0 && (
+                      <span className="absolute top-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white"
+                        style={{ background: '#6366F1' }}>PRIMARY</span>
+                    )}
+                    <button type="button"
+                      onClick={() => img.existing ? removeExistingImage(img.id) : removeNewImage(i - existingImgs.length)}
+                      className="absolute top-1 right-1 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {/* Add more slot */}
+                <button type="button" onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center gap-1 transition-colors hover:border-brand-primary/50"
+                  style={{ borderColor: 'var(--border)' }}>
+                  <Plus className="w-5 h-5" style={{ color: 'var(--text-tertiary)' }} />
+                  <span className="text-[10px]" style={{ color: 'var(--text-tertiary)' }}>Нэмэх</span>
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => fileInputRef.current?.click()}
+                className="w-full h-28 rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-2 transition-colors hover:border-brand-primary/50"
+                style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
+                <Package className="w-8 h-8" style={{ color: 'var(--text-tertiary)' }} />
+                <p className="text-sm" style={{ color: 'var(--text-tertiary)' }}>Зураг сонгох (олон)</p>
+                <p className="text-xs" style={{ color: 'var(--ink-4)' }}>JPG, PNG, WEBP — max 5MB тус бүр</p>
+              </button>
+            )}
           </div>
 
           {/* Нэр — зөвхөн нэг талбар */}
@@ -268,6 +342,59 @@ function ProductModal({ product, categories, brands, onClose }: {
                   ))}
                 </div>
               </>
+            )}
+          </div>
+
+          {/* ── Өнгөнүүд ── */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <label className="text-xs font-semibold flex items-center gap-1.5" style={{ color: 'var(--text-secondary)' }}>
+                <Palette className="w-3.5 h-3.5" /> Өнгөнүүд ({colors.length})
+              </label>
+              <button type="button" onClick={() => addColor()}
+                className="btn-ghost btn-sm text-xs flex items-center gap-1 text-brand-primary">
+                <Plus className="w-3.5 h-3.5" /> Өнгө нэмэх
+              </button>
+            </div>
+
+            {/* Preset swatches */}
+            {colors.length === 0 && (
+              <div className="flex flex-wrap gap-1.5 mb-3">
+                {PRESET_COLORS.map(preset => (
+                  <button key={preset.hex} type="button"
+                    onClick={() => addColor(preset)}
+                    title={preset.name}
+                    className="w-6 h-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                    style={{ background: preset.hex, boxShadow: '0 0 0 1px rgba(0,0,0,0.12)' }} />
+                ))}
+                <span className="text-xs self-center ml-1" style={{ color: 'var(--text-tertiary)' }}>preset</span>
+              </div>
+            )}
+
+            {colors.length > 0 && (
+              <div className="space-y-2">
+                {colors.map((color, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input type="color" value={color.hex}
+                      onChange={e => setColorField(i, 'hex', e.target.value)}
+                      className="w-8 h-8 rounded-lg cursor-pointer border-0 p-0.5 flex-shrink-0"
+                      style={{ background: 'var(--surface-1)' }} />
+                    <input value={color.name} onChange={e => setColorField(i, 'name', e.target.value)}
+                      placeholder="Өнгөний нэр (жишээ: Midnight Black)"
+                      className="input text-xs py-1.5 flex-1" />
+                    <div className="w-5 h-5 rounded-full flex-shrink-0 border"
+                      style={{ background: color.hex, borderColor: 'var(--border)' }} />
+                    <button type="button" onClick={() => removeColor(i)}
+                      className="p-1 rounded-lg hover:bg-red-50 text-red-400 transition-colors flex-shrink-0">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => addColor()}
+                  className="text-xs text-brand-primary hover:underline mt-1">
+                  + Өнгө нэмэх
+                </button>
+              </div>
             )}
           </div>
 
