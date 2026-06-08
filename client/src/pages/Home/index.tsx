@@ -192,8 +192,11 @@ function HeroBanner() {
 
   return (
     // Тогтмол өндөр — текстийн урт хамаарахгүй
-    <div className="relative overflow-hidden rounded-2xl"
-      style={{ background: b.bg, height: 400 }}>
+    <div className="relative overflow-hidden rounded-xl sm:rounded-2xl"
+      style={{
+        background: b.bg,
+        height: 'clamp(180px, 50vw, 400px)'
+      }}>
 
       {/* Background image */}
       {b.bg_image_url && (
@@ -220,7 +223,7 @@ function HeroBanner() {
       }} />
 
       {/* Content — flex, тогтмол өндөр */}
-      <div className="absolute inset-0 flex items-center justify-between gap-4 px-8 md:px-12"
+      <div className="absolute inset-0 flex items-center justify-between gap-2 sm:gap-4 px-4 sm:px-8 md:px-12"
         style={{ zIndex: 2 }}>
 
         {/* Left — текст */}
@@ -317,7 +320,7 @@ function HeroBanner() {
       </div>
 
       {/* Dots */}
-      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5" style={{ zIndex: 3 }}>
+      <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-1" style={{ zIndex: 3 }}>
         {bannerList.map((_: any, i: number) => (
           <button
             key={i}
