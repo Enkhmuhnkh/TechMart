@@ -1,10 +1,11 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { ShoppingCart, Heart, Search, Sun, Moon, LogOut,
-         LayoutDashboard, User, X, Sparkles } from 'lucide-react';
+         LayoutDashboard, User, Sparkles, Command } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useCartStore, useUIStore } from '../../store';
 import { authApi } from '../../api';
+import { SearchCommand } from './SearchCommand';
 import toast from 'react-hot-toast';
 
 export function Navbar() {
@@ -13,7 +14,7 @@ export function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const { itemCount, openCart } = useCartStore();
   const { theme, toggleTheme } = useUIStore();
-  const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -27,13 +28,17 @@ export function Navbar() {
 
   useEffect(() => { setMenuOpen(false); }, [location.pathname]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (search.trim()) {
-      navigate(`/shop?q=${encodeURIComponent(search.trim())}`);
-      setSearch('');
-    }
-  };
+  // Cmd+K / Ctrl+K shortcut
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen(s => !s);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const handleLogout = async () => {
     try { await authApi.logout(); } catch {}
@@ -49,6 +54,7 @@ export function Navbar() {
     : scrolled ? 'rgba(248,247,244,0.96)' : '#EDEDEA';
 
   return (
+    <>
     <nav
       className="sticky top-0 z-50 transition-all duration-200"
       style={{
@@ -78,35 +84,39 @@ export function Navbar() {
             </span>
           </Link>
 
-          {/* Search bar — desktop */}
-          <form onSubmit={handleSearch} className="flex-1 min-w-0 max-w-sm mx-2 hidden md:flex">
-            <div className="relative w-full">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none"
-                style={{ color: 'var(--ink-4)' }} />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Бүтээгдэхүүн хайх..."
-                className="input pl-9 text-sm w-full"
-                style={{ height: '36px', fontSize: '13px', borderRadius: '10px',
-                  background: theme === 'dark' ? 'var(--bg-3)' : 'var(--bg)' }}
-              />
-              {search && (
-                <button type="button" onClick={() => setSearch('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                  <X className="w-3.5 h-3.5" style={{ color: 'var(--ink-4)' }} />
-                </button>
-              )}
-            </div>
-          </form>
+          {/* Search trigger — desktop */}
+          <motion.button
+            onClick={() => setSearchOpen(true)}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+            className="flex-1 min-w-0 max-w-sm mx-2 hidden md:flex items-center gap-2.5 px-3 text-left transition-all"
+            style={{
+              height: '36px',
+              borderRadius: '10px',
+              background: theme === 'dark' ? 'var(--bg-3)' : 'var(--bg)',
+              border: '0.5px solid var(--line-strong)',
+              color: 'var(--ink-4)',
+              fontSize: '13px',
+            }}>
+            <Search className="w-3.5 h-3.5 flex-shrink-0" style={{ color: 'var(--ink-4)' }} />
+            <span className="flex-1 truncate" style={{ fontSize: '13px' }}>Бүтээгдэхүүн хайх...</span>
+            <span className="hidden lg:flex items-center gap-0.5 flex-shrink-0 text-[10px] font-mono px-1.5 py-0.5 rounded-md"
+              style={{ background: 'var(--bg-2)', border: '0.5px solid var(--line-strong)', color: 'var(--ink-4)' }}>
+              <Command className="w-2.5 h-2.5" />K
+            </span>
+          </motion.button>
 
           {/* Right actions — flex-shrink-0 to stay in one row */}
           <div className="flex items-center gap-1 ml-auto flex-shrink-0">
 
             {/* Search mobile */}
-            <Link to="/shop" className="btn-ghost p-2 rounded-lg md:hidden flex-shrink-0">
+            <motion.button
+              onClick={() => setSearchOpen(true)}
+              whileTap={{ scale: 0.88 }}
+              className="btn-ghost p-2 rounded-lg md:hidden flex-shrink-0">
               <Search className="w-4 h-4" style={{ color: 'var(--ink-3)' }} />
-            </Link>
+            </motion.button>
 
             {/* AI button — purple gradient, original style */}
             <Link to="/ai" className="flex-shrink-0">
@@ -244,5 +254,8 @@ export function Navbar() {
         </div>
       </div>
     </nav>
+
+    <SearchCommand open={searchOpen} onClose={() => setSearchOpen(false)} />
+    </>
   );
 }
