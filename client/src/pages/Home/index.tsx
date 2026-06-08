@@ -569,6 +569,13 @@ function PromoBanners() {
             <div className="relative overflow-hidden rounded-2xl group"
               style={{ background: b.bg, minHeight: 'clamp(160px, 35vw, 220px)' }}>
 
+              {/* Background image */}
+              {(b as any).bg_image_url && (
+                <img src={(b as any).bg_image_url} alt=""
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                  style={{ opacity: 0.35, mixBlendMode: 'luminosity' }} />
+              )}
+
               <div className="orb absolute -top-8 left-1/4 w-40 h-40 opacity-20" style={{ background: b.accent }} />
               <div className="absolute inset-0 opacity-[0.04]" style={{
                 backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)',

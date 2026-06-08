@@ -183,7 +183,7 @@ async function runProductQuery(conditions: string[], vals: unknown[], limit: num
   const { rows } = await query(
     `SELECT p.id, p.name, p.name_mn, p.slug, p.price, p.sale_price, p.stock_quantity,
             p.description, b.name as brand_name, c.name as category_name, c.slug as category_slug,
-            (SELECT url FROM product_images WHERE product_id = p.id AND is_primary=true LIMIT 1) as image_url,
+            (SELECT url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order ASC LIMIT 1) as image_url,
             COALESCE(
               json_agg(json_build_object('key', ps.spec_key, 'value', ps.spec_value) ORDER BY ps.sort_order)
               FILTER (WHERE ps.id IS NOT NULL), '[]'

@@ -65,7 +65,7 @@ export async function findAll(filters: ProductFilters) {
             p.stock_quantity, p.status, p.created_at,
             c.name as category_name, c.name_mn as category_name_mn, c.slug as category_slug,
             b.name as brand_name,
-            (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
+            (SELECT url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order ASC LIMIT 1) as image_url
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
      LEFT JOIN brands b ON p.brand_id = b.id
@@ -118,7 +118,7 @@ export async function findByIds(ids: string[]) {
   const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
   const { rows } = await query(
     `SELECT p.*, c.name as category_name, b.name as brand_name,
-            (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url,
+            (SELECT url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order ASC LIMIT 1) as image_url,
             json_agg(json_build_object('key', ps.spec_key, 'value', ps.spec_value, 'group', ps.spec_group) ORDER BY ps.sort_order) as specs
      FROM products p
      LEFT JOIN categories c ON p.category_id = c.id
@@ -134,7 +134,7 @@ export async function findByIds(ids: string[]) {
 export async function findRelated(productId: string, categoryId: string, limit = 6) {
   const { rows } = await query(
     `SELECT p.id, p.name, p.name_mn, p.slug, p.price, p.sale_price,
-            (SELECT url FROM product_images WHERE product_id = p.id AND is_primary = true LIMIT 1) as image_url
+            (SELECT url FROM product_images WHERE product_id = p.id ORDER BY is_primary DESC, sort_order ASC LIMIT 1) as image_url
      FROM products p
      WHERE p.category_id = $1 AND p.id != $2 AND p.status = 'active'
      ORDER BY RANDOM() LIMIT $3`,

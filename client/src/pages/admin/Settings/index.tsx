@@ -23,7 +23,7 @@ interface Banner {
 interface PromoBannerItem {
   id: number; tag: string; title: string; subtitle: string;
   cta: string; link: string; emoji: string; accent: string;
-  image_url: string; bg: string;
+  image_url: string; bg_image_url: string; bg: string;
 }
 
 interface TrustItem {
@@ -31,8 +31,8 @@ interface TrustItem {
 }
 
 const DEFAULT_PROMO: PromoBannerItem[] = [
-  { id: 1, tag: 'Онцлох', title: 'Хөгжмийн туршлагаа\nсайжруулаарай', subtitle: 'AirPods, Sony, Bose — шилдэг чихэвчнүүд', cta: 'Одоо авах', link: '/shop?category=earbuds', emoji: '🎧', accent: '#00D4AA', image_url: '', bg: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)' },
-  { id: 2, tag: 'Gaming', title: 'Тоглоомын\nтоног төхөөрөмж', subtitle: 'Mouse, Keyboard, Headset — pro setup', cta: 'Харах', link: '/shop?category=keyboards', emoji: '🎮', accent: '#6C63FF', image_url: '', bg: 'linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #2d1b69 100%)' },
+  { id: 1, tag: 'Онцлох', title: 'Хөгжмийн туршлагаа\nсайжруулаарай', subtitle: 'AirPods, Sony, Bose — шилдэг чихэвчнүүд', cta: 'Одоо авах', link: '/shop?category=earbuds', emoji: '🎧', accent: '#00D4AA', image_url: '', bg_image_url: '', bg: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)' },
+  { id: 2, tag: 'Gaming', title: 'Тоглоомын\nтоног төхөөрөмж', subtitle: 'Mouse, Keyboard, Headset — pro setup', cta: 'Харах', link: '/shop?category=keyboards', emoji: '🎮', accent: '#6C63FF', image_url: '', bg_image_url: '', bg: 'linear-gradient(135deg, #0d0d0d 0%, #1a1a2e 50%, #2d1b69 100%)' },
 ];
 
 const ICON_OPTIONS = [
@@ -308,9 +308,9 @@ export default function AdminSettings() {
   };
 
   const updatePromo = (id: number, field: keyof PromoBannerItem, value: string) => setPromoBanners(pb => pb.map(b => b.id === id ? { ...b, [field]: value } : b));
-  const handlePromoImage = (id: number, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePromoImage = (id: number, field: 'image_url' | 'bg_image_url', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]; if (!file) return;
-    const reader = new FileReader(); reader.onload = () => updatePromo(id, 'image_url', reader.result as string); reader.readAsDataURL(file);
+    const reader = new FileReader(); reader.onload = () => updatePromo(id, field, reader.result as string); reader.readAsDataURL(file);
   };
 
   const addTrustItem = () => { if (trustItems.length >= 4) { toast.error('Хамгийн ихдээ 4 item'); return; } setTrustItems(t => [...t, { icon: 'star', title: 'Шинэ давуу тал', desc: 'Тайлбар', color: '#6C63FF' }]); };
@@ -525,15 +525,36 @@ export default function AdminSettings() {
                     <div><label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Emoji</label><div className="flex flex-wrap gap-2">{EMOJI_OPTIONS.map(e => <button key={e} onClick={() => updatePromo(b.id, 'emoji', e)} className="w-10 h-10 rounded-xl text-xl flex items-center justify-center transition-all" style={{ background: b.emoji === e ? 'var(--brand-primary)' : 'var(--surface-2)', transform: b.emoji === e ? 'scale(1.15)' : 'scale(1)' }}>{e}</button>)}</div></div>
                     <div><label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Accent өнгө</label><div className="flex gap-2 flex-wrap">{ACCENT_COLORS.map(c => <button key={c} onClick={() => updatePromo(b.id, 'accent', c)} className="w-8 h-8 rounded-lg transition-all border-2" style={{ background: c, borderColor: b.accent === c ? 'white' : 'transparent', transform: b.accent === c ? 'scale(1.2)' : 'scale(1)' }} />)}</div></div>
                     <div><label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Арын дэвсгэр</label><div className="grid grid-cols-3 gap-2">{BG_PRESETS.map(p => <button key={p.value} onClick={() => updatePromo(b.id, 'bg', p.value)} className="h-10 rounded-xl border-2 text-xs font-semibold text-white transition-all" style={{ background: p.value, borderColor: b.bg === p.value ? 'white' : 'transparent' }}>{b.bg === p.value ? '✓ ' : ''}{p.label}</button>)}</div></div>
+                    {/* Product image */}
                     <div>
-                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>📦 Зураг (баруун тал)</label>
-                      <input ref={el => { fileRefs.current[`promo-${b.id}`] = el; }} type="file" accept="image/*" onChange={e => handlePromoImage(b.id, e)} className="hidden" />
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>📦 Бараны зураг (баруун тал)</label>
+                      <input ref={el => { fileRefs.current[`promo-${b.id}`] = el; }} type="file" accept="image/*" onChange={e => handlePromoImage(b.id, 'image_url', e)} className="hidden" />
                       <button onClick={() => fileRefs.current[`promo-${b.id}`]?.click()} className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2" style={{ borderColor: 'var(--border)' }}><Upload className="w-3.5 h-3.5" /> Зураг оруулах</button>
                       {b.image_url && <div className="flex items-center gap-2 mt-2"><img src={b.image_url} className="w-16 h-16 rounded-xl object-contain" style={{ background: 'var(--surface-2)' }} alt="" /><button onClick={() => updatePromo(b.id, 'image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button></div>}
                     </div>
+
+                    {/* Background image */}
+                    <div>
+                      <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>🖼️ Арын дэвсгэр зураг</label>
+                      <p className="text-xs mb-2" style={{ color: 'var(--text-tertiary)' }}>Зураг байвал gradient дээр давхарлан харагдана (opacity 35%)</p>
+                      <input ref={el => { fileRefs.current[`promo-bg-${b.id}`] = el; }} type="file" accept="image/*" onChange={e => handlePromoImage(b.id, 'bg_image_url', e)} className="hidden" />
+                      <button onClick={() => fileRefs.current[`promo-bg-${b.id}`]?.click()} className="btn-ghost border rounded-xl px-3 py-2 text-xs flex items-center gap-2" style={{ borderColor: 'var(--border)' }}><Upload className="w-3.5 h-3.5" /> Арын зураг оруулах</button>
+                      {b.bg_image_url && (
+                        <div className="flex items-center gap-2 mt-2">
+                          <img src={b.bg_image_url} className="w-24 h-14 rounded-xl object-cover" alt="" />
+                          <button onClick={() => updatePromo(b.id, 'bg_image_url', '')} className="text-red-500 p-1"><X className="w-3.5 h-3.5" /></button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Preview */}
                     <div>
                       <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Урьдчилан харах</label>
                       <div className="rounded-xl overflow-hidden relative" style={{ background: b.bg, minHeight: 110 }}>
+                        {b.bg_image_url && (
+                          <img src={b.bg_image_url} alt="" className="absolute inset-0 w-full h-full object-cover"
+                            style={{ opacity: 0.35, mixBlendMode: 'luminosity' }} />
+                        )}
                         <div className="relative p-5 flex items-center justify-between" style={{ zIndex: 1 }}>
                           <div>
                             <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: b.accent + '33', color: b.accent }}>↗ {b.tag}</span>
@@ -541,7 +562,9 @@ export default function AdminSettings() {
                             <p className="text-xs mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>{b.subtitle}</p>
                             <span className="inline-block mt-3 px-4 py-1.5 rounded-lg text-xs font-bold text-white" style={{ background: b.accent }}>{b.cta} →</span>
                           </div>
-                          {b.image_url ? <img src={b.image_url} alt="" className="h-16 w-16 object-contain" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} /> : <div className="text-5xl">{b.emoji}</div>}
+                          {b.image_url
+                            ? <img src={b.image_url} alt="" className="h-16 w-16 object-contain" style={{ filter: 'drop-shadow(0 4px 12px rgba(0,0,0,0.4))' }} />
+                            : <div className="text-5xl">{b.emoji}</div>}
                         </div>
                       </div>
                     </div>
