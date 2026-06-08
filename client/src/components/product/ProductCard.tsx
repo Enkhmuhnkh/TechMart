@@ -48,15 +48,15 @@ export function ProductCard({ product, className }: Props) {
   return (
     <motion.div
       className={cn('product-card group', className)}
-      whileHover={{ y: -7, scale: 1.01 }}
-      whileTap={{ scale: 0.98, y: -2 }}
-      transition={{ type: 'spring', stiffness: 320, damping: 24 }}
+      whileHover={{ y: -8, scale: 1.015 }}
+      whileTap={{ scale: 0.97, y: -2 }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       onMouseEnter={e => {
         const el = e.currentTarget as HTMLElement;
         el.style.borderColor = 'transparent';
         el.style.boxShadow = theme === 'dark'
-          ? '0 20px 48px rgba(200,255,87,0.06), 0 0 0 0.5px rgba(200,255,87,0.15)'
-          : '0 20px 48px rgba(12,12,15,0.1), 0 0 0 0.5px rgba(12,12,15,0.06)';
+          ? '0 24px 52px rgba(99,102,241,0.18), 0 0 0 0.5px rgba(99,102,241,0.3)'
+          : '0 20px 48px rgba(12,12,15,0.12), 0 0 0 0.5px rgba(12,12,15,0.07)';
       }}
       onMouseLeave={e => {
         const el = e.currentTarget as HTMLElement;
@@ -103,7 +103,9 @@ export function ProductCard({ product, className }: Props) {
           <div className="card-actions absolute top-2.5 right-2.5 flex flex-col gap-1.5">
             <motion.button
               onClick={handleWishlist}
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.82 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
               style={{
                 background: isWishlisted ? 'var(--red)' : 'var(--bg)',
@@ -118,7 +120,9 @@ export function ProductCard({ product, className }: Props) {
               />
             </motion.button>
             <motion.button
+              whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.82 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="w-8 h-8 rounded-xl flex items-center justify-center"
               style={{
                 background: 'var(--bg)',
@@ -156,8 +160,10 @@ export function ProductCard({ product, className }: Props) {
             <motion.button
               onClick={handleCart}
               disabled={outOfStock || isPending}
-              whileTap={{ scale: 0.85 }}
-              className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0 disabled:opacity-30 transition-all ripple-btn"
+              whileHover={!outOfStock ? { scale: 1.08 } : {}}
+              whileTap={!outOfStock ? { scale: 0.88 } : {}}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+              className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0 disabled:opacity-30 ripple-btn"
               style={{
                 background: outOfStock ? 'var(--bg-3)' : theme === 'dark' ? '#6366F1' : 'var(--ink)',
                 boxShadow: outOfStock ? 'none' : theme === 'dark' ? '0 4px 16px rgba(99,102,241,0.4)' : 'var(--shadow-sm)',

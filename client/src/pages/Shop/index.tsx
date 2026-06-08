@@ -2,10 +2,21 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SlidersHorizontal, X, ChevronDown, Search } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useProducts, useCategories, useBrands } from '../../hooks';
 import { ProductCard, ProductCardSkeleton } from '../../components/product/ProductCard';
 import { cn } from '../../utils';
 import type { ProductFilters } from '../../types';
+
+const GRID_CONTAINER = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.06, delayChildren: 0.05 } },
+};
+const GRID_ITEM = {
+  hidden: { opacity: 0, y: 24, scale: 0.95 },
+  show:   { opacity: 1, y: 0,  scale: 1,
+    transition: { duration: 0.45, ease: [0.16, 1, 0.3, 1] } },
+};
 
 const SORT_OPTIONS = [
   { value: 'created:desc', label: 'shop.sort.newest' },
@@ -221,23 +232,35 @@ export default function ShopPage() {
           )}
 
           {/* Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {isLoading
-              ? Array.from({ length: 24 }).map((_, i) => <ProductCardSkeleton key={i} />)
-              : !data?.data?.length
-                ? (
-                  <div className="col-span-full text-center py-24">
-                    <div className="text-5xl mb-4">🔍</div>
-                    <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
-                      {t('shop.noProducts')}
-                    </p>
-                    <button onClick={clearFilters} className="btn-ghost text-sm text-brand-primary mt-3">
-                      {t('shop.clearFilters')}
-                    </button>
-                  </div>
-                )
-                : data.data.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
+          {isLoading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {Array.from({ length: 24 }).map((_, i) => <ProductCardSkeleton key={i} />)}
+            </div>
+          ) : !data?.data?.length ? (
+            <div className="text-center py-24">
+              <div className="text-5xl mb-4">🔍</div>
+              <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
+                {t('shop.noProducts')}
+              </p>
+              <button onClick={clearFilters} className="btn-ghost text-sm text-brand-primary mt-3">
+                {t('shop.clearFilters')}
+              </button>
+            </div>
+          ) : (
+            <motion.div
+              key={JSON.stringify(filters)}
+              className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
+              variants={GRID_CONTAINER}
+              initial="hidden"
+              animate="show"
+            >
+              {data.data.map(p => (
+                <motion.div key={p.id} variants={GRID_ITEM}>
+                  <ProductCard product={p} />
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
 
           {/* Pagination */}
           {data?.meta && data.meta.totalPages > 1 && (

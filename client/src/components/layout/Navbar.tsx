@@ -111,8 +111,9 @@ export function Navbar() {
             {/* AI button — purple gradient, original style */}
             <Link to="/ai" className="flex-shrink-0">
               <motion.div
-                whileHover={{ scale: 1.06, boxShadow: '0 6px 20px rgba(108,99,255,0.45)' }}
-                whileTap={{ scale: 0.92 }}
+                whileHover={{ scale: 1.07, boxShadow: '0 8px 24px rgba(99,102,241,0.5)' }}
+                whileTap={{ scale: 0.91 }}
+                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold overflow-hidden"
                 style={{
                   background: 'linear-gradient(135deg, #6C63FF, #a855f7)',
@@ -130,7 +131,10 @@ export function Navbar() {
             </Link>
 
             {/* Dark mode */}
-            <motion.button onClick={toggleTheme} whileTap={{ scale: 0.85, rotate: 20 }}
+            <motion.button onClick={toggleTheme}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.85, rotate: 20 }}
+              transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               className="btn-ghost p-2 rounded-lg flex-shrink-0">
               {theme === 'dark'
                 ? <Sun className="w-4 h-4" style={{ color: 'var(--ink-3)' }} />

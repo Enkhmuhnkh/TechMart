@@ -42,10 +42,10 @@ export function CartDrawer() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
             onClick={closeCart}
             className="fixed inset-0 z-40"
-            style={{ background: 'rgba(0,0,0,0.45)' }}
+            style={{ background: 'rgba(0,0,0,0.5)' }}
           />
 
           {/* Drawer */}
@@ -53,7 +53,7 @@ export function CartDrawer() {
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+            transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
             className="fixed right-0 top-0 h-full w-full max-w-sm z-50 flex flex-col"
             style={{ background: 'var(--surface-0)', boxShadow: '-4px 0 30px rgba(0,0,0,0.15)' }}
           >
