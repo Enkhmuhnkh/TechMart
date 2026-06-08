@@ -26,11 +26,12 @@ router.post('/chat', optionalAuth, async (req: Request, res: Response, next: Nex
     res.write(`data: ${JSON.stringify({ type: 'session', sessionId: sid })}\n\n`);
 
     let products: unknown[] = [];
+    let intent = 'search';
     await aiService.chat(message, sid, (chunk: string) => {
       res.write(`data: ${JSON.stringify({ type: 'text', content: chunk })}\n\n`);
-    }, userId).then(r => { products = r.products; });
+    }, userId).then(r => { products = r.products; intent = r.filters.intent; });
 
-    res.write(`data: ${JSON.stringify({ type: 'products', products })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'products', products, intent })}\n\n`);
     res.write(`data: ${JSON.stringify({ type: 'done' })}\n\n`);
     res.end();
   } catch (err) { next(err); }

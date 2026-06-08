@@ -48,38 +48,32 @@ Output format:
   "web_query": string or null
 }`;
 
-const MAIN_SYSTEM_PROMPT = `Чи TechMart AI туслагч — Монголын tech дэлгүүрийн мэргэжлийн зөвлөгч.
+const MAIN_SYSTEM_PROMPT = `Чи TechMart AI — Монголын шилдэг tech дэлгүүрийн найрсаг, ухаалаг зөвлөгч найз.
 
-ЧИНИЙ ТУХАЙ:
-- Нэр: TechMart AI
-- Монгол болон Англи хэлээр чөлөөтэй ярилцана
-- Хэрэглэгчийн бичсэн хэлээр хариулна
-- Мэргэжлийн, найрсаг, товч байна
+ЗАН ЧАНАР:
+- Яг л tech-ийг сайн мэддэг найз шиг ярь — хэт албан ёсны, хуурай, эсвэл робот шиг байж болохгүй
+- "Сайн байна уу, танд юугаар туслах вэ?" гэх хэлбэрийн хатуу загвар ашиглахгүй
+- Монголоор бичвэл Монголоор, Англиар бичвэл Англиар, хольж бичвэл хольж хариулна
+- Хошин, дулаан, байгалийн яриа — "яг таны хэрэгцээнд нийцэх нь!", "энэ бараа үнэхээр гайхалтай шүү" гэх мэт
+- Товч бай — шаардлагагүй удаан тайлбар хийхгүй
 
-ХИЙЖ ЧАДАХ ЗҮЙ:
-1. 🔍 Дэлгүүрийн бодит бараануудаас хайж санал болгох
-2. 💡 Техникийн зөвлөгөө өгөх (spec тайлбарлах, харьцуулах)
-3. 🌐 Интернетийн мэдээлэл дээр үндэслэн гүнзгий дүн шинжилгээ хийх
-4. 📊 Бараануудыг харьцуулж давуу/сул талыг тайлбарлах
-5. 💰 Төсөвт тохирсон хамгийн зүйтэй сонголт санал болгох
+БАРАА САНАЛ БОЛГОХДОО (ЗААВАЛ ДАГАХ):
+- Зөвхөн ДЭЛГҮҮРИЙН БАРААНУУД хэсэгт байгаа бодит барааг дурьд — зохиомол бараа нэр гаргаж болохгүй
+- Бараан дахь яг нэрийг ашигла (name эсвэл name_mn)
+- Үнэ, нөөцийг зөв дурьд
+- Хэрэгцээнд яагаад тохирохыг богинохон тайлбарла
+- Нэг асуултад 2-4 бараа санал болгохоос илүүгүй
 
-БАРАА САНАЛ БОЛГОХДОО:
-- Заавал бодит мэдээлэл ашиглах, зохиомол spec бичихгүй
-- Үнэ, нөөц, брэнд зөв дурьдах
-- Хэрэглэгчийн хэрэгцээнд яагаад тохирохыг тайлбарлах
-- Сагсанд нэмэх товч дарах боломжтойг дурьдаж болно
+ХАРЬЦУУЛАХДОО:
+- Тодорхой давуу/сул талыг гарга
+- Ямар хэрэглэгчид тохирохыг хэл
 
-ВЕБ ХАЙЛТЫН ДҮНГ АШИГЛАХДАА:
-- "Интернетийн мэдээллээс үзэхэд..." гэж эхлэх
-- Мэдээллийн эх сурвалжийг дурьдах
-- Дэлгүүрийн бараатай холбох
-
-ТУСЛАМЖ ХҮСЭХ АСУУЛТЫН ЖИШЭЭ:
-- "Дэлгэрэнгүй мэдэхийг хүсвэл надаас асуугаарай"
-- Сүүлд НЭГ л асуулт тавих
+ВЕБ МЭДЭЭЛЭЛ АШИГЛАХДАА:
+- "Интернетийн мэдээллээс харвал..." гэж нэг удаа дурьдаад л шууд мэдээлэлд ор
 
 ХЯЗГААРЛАЛТ:
-- Дэлгүүртэй холбогдохгүй сэдвүүдэд "Би зөвхөн tech бараа, дэлгүүрийн талаар туслах боломжтой" гэж хэлэх`;
+- Tech болон дэлгүүртэй холбоогүй асуултад: "Тэр талаар тусалж чадахгүй байна, tech, gadget-ийн асуулт байвал асуугаарай 😊"
+- Сүүлд НЭГХЭН л зөв асуулт тавих (заавал биш)`;
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface FilterResult {
@@ -303,6 +297,39 @@ async function getSessionHistory(sessionToken: string): Promise<ChatMessage[]> {
   }
 }
 
+// Full history with products (for UI load)
+async function getSessionFull(sessionToken: string): Promise<any[]> {
+  try {
+    const session = await queryOne<{ id: string }>(
+      'SELECT id FROM chat_sessions WHERE session_token = $1', [sessionToken]
+    );
+    if (!session) return [];
+    const { rows } = await query(
+      `SELECT role, content, products_json FROM chat_messages
+       WHERE session_id = $1 ORDER BY created_at ASC LIMIT 40`,
+      [session.id]
+    );
+    return rows;
+  } catch { return []; }
+}
+
+// After streaming: keep only products actually mentioned in AI response
+function syncProducts(response: string, products: unknown[]): unknown[] {
+  if (!products.length) return [];
+  const lower = response.toLowerCase();
+  const matched = (products as any[]).filter(p => {
+    const name    = (p.name    || '').toLowerCase();
+    const nameMn  = (p.name_mn || '').toLowerCase();
+    const brand   = (p.brand_name || '').toLowerCase();
+    // Match by name, name_mn, slug or brand+partial name
+    return (name   && lower.includes(name.slice(0, 12))) ||
+           (nameMn && lower.includes(nameMn.slice(0, 12))) ||
+           (p.slug && lower.includes(p.slug.slice(0, 12)));
+  });
+  // If nothing matched but AI likely recommended (not a "no products" reply), return all
+  return matched.length > 0 ? matched : products;
+}
+
 function updateMemHistory(token: string, user: string, assistant: string) {
   const h = memSessions.get(token) || [];
   const updated = [...h, { role: 'user' as const, content: user }, { role: 'assistant' as const, content: assistant }].slice(-20);
@@ -350,31 +377,31 @@ export async function chat(
 
   // 5. Build prompt
   const productSummary = products.map((p: any) => ({
-    name: p.name,
-    name_mn: p.name_mn,
+    id:    p.id,
+    slug:  p.slug,
+    name:  p.name_mn || p.name,
     brand: p.brand_name,
-    category: p.category_name,
     price: `${Math.round(Number(p.sale_price || p.price)).toLocaleString()}₮`,
     original_price: p.sale_price ? `${Math.round(Number(p.price)).toLocaleString()}₮` : null,
-    stock: p.stock_quantity,
-    description: p.description?.slice(0, 150),
-    specs: Array.isArray(p.specs) ? p.specs.slice(0, 5) : [],
-    slug: p.slug,
+    stock: p.stock_quantity > 0 ? 'нөөцтэй' : 'дууссан',
+    specs: Array.isArray(p.specs) ? p.specs.slice(0, 6) : [],
+    description: (p.description_mn || p.description || '').slice(0, 120),
   }));
 
   const lang = filters.language === 'mn' ? 'Монгол' : 'English';
+  const isCompare = filters.intent === 'compare';
 
   let contextPrompt = `Хэрэглэгчийн асуулт: "${userMessage}"
-Хайлтын параметр: ангилал=${category || 'бүгд'}, брэнд=${filters.brand || 'бүгд'}, хамгийн их үнэ=${filters.max_price ? filters.max_price.toLocaleString() + '₮' : 'тодорхойгүй'}
-Дэлгүүрээс олдсон бараа: ${productSummary.length} ширхэг
+Нийт олдсон бараа: ${productSummary.length}
 
 ${productSummary.length > 0
-  ? `ДЭЛГҮҮРИЙН БАРААНУУД:\n${JSON.stringify(productSummary, null, 2)}`
-  : 'Дэлгүүрт тохирох бараа олдсонгүй.'}
+  ? `ДЭЛГҮҮРИЙН БАРААНУУД (зөвхөн эдгээрийг ашиглана, өөр зохиохгүй):\n${JSON.stringify(productSummary, null, 2)}`
+  : 'Дэлгүүрт тохирох бараа олдсонгүй. Ерөнхий зөвлөгөө өг.'}
 
-${webInfo ? `\nИНТЕРНЕТИЙН МЭДЭЭЛЭЛ (${filters.web_query || userMessage}):\n${webInfo}` : ''}
+${webInfo ? `\nИНТЕРНЕТИЙН МЭДЭЭЛЭЛ:\n${webInfo}` : ''}
 
-${lang} хэлээр хариул. Товч, мэргэжлийн байх.`;
+${isCompare && productSummary.length >= 2 ? 'ХАРЬЦУУЛАЛТ хийж, тодорхой давуу/сул талыг гарга.' : ''}
+${lang} хэлээр хариул.`;
 
   const messages = [
     { role: 'system', content: MAIN_SYSTEM_PROMPT },
@@ -420,23 +447,26 @@ ${lang} хэлээр хариул. Товч, мэргэжлийн байх.`;
     }
   }
 
-  // 7. Save to DB
+  // 7. Sync products — only return what AI actually mentioned
+  const syncedProducts = syncProducts(fullResponse, products);
+
+  // 8. Save to DB
   try {
     const dbSessionId = await getOrCreateSession(sessionToken, userId);
     await updateSessionTitle(dbSessionId, userMessage);
     await saveMessageToDB(dbSessionId, 'user', userMessage);
-    await saveMessageToDB(dbSessionId, 'assistant', fullResponse, products);
+    await saveMessageToDB(dbSessionId, 'assistant', fullResponse, syncedProducts);
   } catch {}
 
-  // 8. Update in-memory fallback
+  // 9. Update in-memory fallback
   updateMemHistory(sessionToken, userMessage, fullResponse);
 
-  return { products, filters };
+  return { products: syncedProducts, filters };
 }
 
 // ── Public session functions ───────────────────────────────────────────────────
-export async function getSession(sessionToken: string): Promise<ChatMessage[]> {
-  return getSessionHistory(sessionToken);
+export async function getSession(sessionToken: string): Promise<any[]> {
+  return getSessionFull(sessionToken);
 }
 
 export async function clearSession(sessionToken: string): Promise<void> {

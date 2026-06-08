@@ -18,6 +18,7 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   products?: Product[];
+  intent?: string;
   isStreaming?: boolean;
   isWebSearch?: boolean;
 }
@@ -93,6 +94,81 @@ function ProductMiniCard({ product }: { product: Product }) {
   );
 }
 
+function CompareTable({ products }: { products: Product[] }) {
+  if (products.length < 2) return null;
+  // Collect all unique spec keys across products
+  const allKeys = Array.from(new Set(
+    products.flatMap((p: any) =>
+      (Array.isArray(p.specs) ? p.specs : []).map((s: any) => s.key || s.spec_key)
+    )
+  )).slice(0, 8);
+
+  return (
+    <div className="w-full overflow-x-auto rounded-xl border mt-1" style={{ borderColor: 'var(--border)' }}>
+      <table className="w-full text-xs min-w-[360px]">
+        <thead>
+          <tr style={{ background: 'var(--surface-2)' }}>
+            <th className="text-left px-3 py-2 font-semibold w-24" style={{ color: 'var(--text-tertiary)' }}>Шинж чанар</th>
+            {products.map((p: any) => (
+              <th key={p.id} className="px-3 py-2 text-left font-semibold" style={{ color: 'var(--text-primary)' }}>
+                <div className="flex items-center gap-1.5">
+                  {p.image_url && <img src={p.image_url} alt="" className="w-6 h-6 object-contain rounded" />}
+                  <span className="line-clamp-2 leading-tight">{p.name_mn || p.name}</span>
+                </div>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {/* Price row */}
+          <tr className="border-t" style={{ borderColor: 'var(--border)' }}>
+            <td className="px-3 py-2 font-medium" style={{ color: 'var(--text-secondary)' }}>Үнэ</td>
+            {products.map((p: any) => {
+              const price = p.sale_price ? Number(p.sale_price) : Number(p.price);
+              return (
+                <td key={p.id} className="px-3 py-2 font-bold text-brand-primary">
+                  {price.toLocaleString()}₮
+                  {p.sale_price && (
+                    <span className="text-xs line-through ml-1" style={{ color: 'var(--text-tertiary)' }}>
+                      {Number(p.price).toLocaleString()}₮
+                    </span>
+                  )}
+                </td>
+              );
+            })}
+          </tr>
+          {/* Stock row */}
+          <tr className="border-t" style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
+            <td className="px-3 py-2 font-medium" style={{ color: 'var(--text-secondary)' }}>Нөөц</td>
+            {products.map((p: any) => (
+              <td key={p.id} className="px-3 py-2">
+                <span className={cn('badge text-xs', p.stock_quantity > 0 ? 'badge-success' : 'badge-danger')}>
+                  {p.stock_quantity > 0 ? 'Байна' : 'Дууссан'}
+                </span>
+              </td>
+            ))}
+          </tr>
+          {/* Spec rows */}
+          {allKeys.map((key, ri) => (
+            <tr key={key} className="border-t"
+              style={{ borderColor: 'var(--border)', background: ri % 2 === 0 ? 'var(--surface-0)' : 'var(--surface-1)' }}>
+              <td className="px-3 py-2 font-medium capitalize" style={{ color: 'var(--text-secondary)' }}>{key}</td>
+              {products.map((p: any) => {
+                const specs = Array.isArray(p.specs) ? p.specs : [];
+                const spec = specs.find((s: any) => (s.key || s.spec_key) === key);
+                const val = spec ? (spec.value || spec.spec_value) : '—';
+                return (
+                  <td key={p.id} className="px-3 py-2" style={{ color: 'var(--text-primary)' }}>{val}</td>
+                );
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function MessageBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === 'user';
   return (
@@ -128,16 +204,31 @@ function MessageBubble({ msg }: { msg: Message }) {
           </div>
         )}
 
-        {/* Product cards */}
+        {/* Product cards OR compare table */}
         {msg.products && msg.products.length > 0 && (
           <div className="w-full">
-            <p className="text-xs mb-2 flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
-              <span className="w-1 h-3 rounded-full bg-brand-primary inline-block" />
-              {msg.products.length} бүтээгдэхүүн олдлоо:
-            </p>
-            <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
-              {msg.products.map(p => <ProductMiniCard key={p.id} product={p} />)}
-            </div>
+            {msg.intent === 'compare' && msg.products.length >= 2 ? (
+              <>
+                <p className="text-xs mb-2 flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <span className="w-1 h-3 rounded-full bg-brand-primary inline-block" />
+                  Харьцуулалтын хүснэгт:
+                </p>
+                <CompareTable products={msg.products} />
+                <div className="flex gap-2 mt-2 overflow-x-auto pb-1 scrollbar-hide">
+                  {msg.products.map(p => <ProductMiniCard key={p.id} product={p} />)}
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="text-xs mb-2 flex items-center gap-1" style={{ color: 'var(--text-tertiary)' }}>
+                  <span className="w-1 h-3 rounded-full bg-brand-primary inline-block" />
+                  {msg.products.length} бүтээгдэхүүн:
+                </p>
+                <div className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-hide">
+                  {msg.products.map(p => <ProductMiniCard key={p.id} product={p} />)}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -204,9 +295,10 @@ export default function AIChatPage() {
         id: i.toString(),
         role: m.role,
         content: m.content,
-        products: [],
+        products: Array.isArray(m.products_json) ? m.products_json : [],
       })));
       setShowHistory(false);
+      setTimeout(() => scrollToBottom(true), 150);
     } catch {}
   };
 
@@ -234,6 +326,7 @@ export default function AIChatPage() {
       const decoder = new TextDecoder();
       let content = '';
       let products: Product[] = [];
+      let intent = 'search';
       let isWebSearch = false;
 
       while (true) {
@@ -243,7 +336,6 @@ export default function AIChatPage() {
           try {
             const data = JSON.parse(line.slice(6));
             if (data.type === 'text') {
-              // Web search signal
               if (data.content === '\n' && !isWebSearch) {
                 isWebSearch = true;
                 setMessages(prev => prev.map(m => m.id === aid ? { ...m, isWebSearch: true } : m));
@@ -254,13 +346,14 @@ export default function AIChatPage() {
               }
             } else if (data.type === 'products') {
               products = data.products || [];
+              intent   = data.intent  || 'search';
             }
           } catch {}
         }
       }
 
       setMessages(prev => prev.map(m =>
-        m.id === aid ? { ...m, content, products, isStreaming: false, isWebSearch: false } : m
+        m.id === aid ? { ...m, content, products, intent, isStreaming: false, isWebSearch: false } : m
       ));
       setTimeout(() => scrollToBottom(true), 100);
       if (isAuthenticated) refetchHistory();
