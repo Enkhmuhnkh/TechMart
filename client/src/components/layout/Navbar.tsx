@@ -63,16 +63,16 @@ export function Navbar() {
         borderBottom: `0.5px solid var(--line-strong)`,
       }}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6">
         {/* Single row — flex-nowrap, no wrap */}
-        <div className="flex items-center h-14 gap-2 flex-nowrap">
+        <div className="flex items-center h-12 sm:h-14 gap-1 sm:gap-2 flex-nowrap">
 
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0">
+          <Link to="/" className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <motion.div
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.93 }}
-              className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+              className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0"
               style={{ background: 'linear-gradient(135deg, #6C63FF, #a855f7)' }}
             >
               <span className="font-semibold text-xs text-white"
@@ -124,7 +124,7 @@ export function Navbar() {
                 whileHover={{ scale: 1.07, boxShadow: '0 8px 24px rgba(99,102,241,0.5)' }}
                 whileTap={{ scale: 0.91 }}
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold overflow-hidden"
+                className="relative flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-xl text-xs font-semibold overflow-hidden"
                 style={{
                   background: 'linear-gradient(135deg, #6C63FF, #a855f7)',
                   color: 'white',
