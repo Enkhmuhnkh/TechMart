@@ -162,7 +162,6 @@ function DesktopSaleSidebar() {
 }
 
 // ── Hero banner ───────────────────────────────────────────────────────────────
-// Home/index.tsx дотор HeroBanner функцийг доорхоор солино
 
 function HeroBanner() {
   const { data: settings } = useQuery({
@@ -190,8 +189,11 @@ function HeroBanner() {
   const b = bannerList[cur];
   if (!b) return null;
 
+  const titleLines = b.title.split('\n');
+  const appleEase = [0.16, 1, 0.3, 1];
+  const premiumEase = [0.25, 1, 0.5, 1];
+
   return (
-    // Тогтмол өндөр — текстийн урт хамаарахгүй
     <div className="relative overflow-hidden rounded-xl sm:rounded-2xl"
       style={{
         background: b.bg,
@@ -200,18 +202,28 @@ function HeroBanner() {
 
       {/* Background image */}
       {b.bg_image_url && (
-        <img src={b.bg_image_url} alt=""
+        <motion.img src={b.bg_image_url} alt=""
+          key={`bg-${cur}`}
           className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: 0.25, zIndex: 0 }} />
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={{ opacity: 0.25, scale: 1 }}
+          transition={{ duration: 1.4, ease: appleEase }}
+          style={{ zIndex: 0 }} />
       )}
 
       {/* Orbs */}
       {!b.bg_image_url && (
         <>
-          <div className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20"
-            style={{ background: b.accent }} />
-          <div className="orb absolute bottom-0 left-1/3 w-44 h-44 opacity-10"
-            style={{ background: b.accent, animationDelay: '3s' }} />
+          <motion.div key={`orb1-${cur}`} className="orb absolute -top-16 -right-16 w-64 h-64 opacity-20"
+            style={{ background: b.accent }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.2 }}
+            transition={{ duration: 0.8, ease: premiumEase }} />
+          <motion.div key={`orb2-${cur}`} className="orb absolute bottom-0 left-1/3 w-44 h-44 opacity-10"
+            style={{ background: b.accent, animationDelay: '3s' }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.1 }}
+            transition={{ duration: 0.8, ease: premiumEase }} />
         </>
       )}
 
@@ -231,15 +243,15 @@ function HeroBanner() {
           key={`t-${cur}`}
           initial={{ opacity: 0, x: -24 * dir }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          // Текст хэсэг: зургийн хэмжээтэй тэнцүү өргөнтэй
+          transition={{ duration: 0.6, ease: appleEase }}
           className="flex-1 min-w-0 flex flex-col justify-center"
           style={{ maxWidth: '55%' }}>
 
           {/* Tag */}
           <motion.span
-            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08, duration: 0.5, ease: premiumEase }}
             className="inline-flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-full mb-3 w-fit"
             style={{
               fontSize: 11,
@@ -250,87 +262,118 @@ function HeroBanner() {
             <Sparkles className="w-3 h-3" /> {b.tag}
           </motion.span>
 
-          {/* Title — аrai жижиг, overflow байхгүй */}
-          <h2
-            className="font-display font-bold text-white leading-tight mb-2 whitespace-pre-line"
-            style={{
-              // Clamp: хамгийн багадаа 1.1rem, хамгийн ихдээ 1.75rem
-              fontSize: 'clamp(1.1rem, 2.8vw, 1.75rem)',
-              // Хэт урт текст таслана
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}>
-            {b.title}
-          </h2>
+          {/* Title — Staggered fade-in-up for each line */}
+          <div className="mb-2">
+            {titleLines.map((line: string, idx: number) => (
+              <motion.div
+                key={`title-line-${idx}`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 + idx * 0.12, duration: 0.6, ease: appleEase }}
+              >
+                <h2
+                  className="font-display font-bold text-white leading-tight"
+                  style={{
+                    fontSize: 'clamp(1.1rem, 2.8vw, 1.75rem)',
+                  }}>
+                  {line}
+                </h2>
+              </motion.div>
+            ))}
+          </div>
 
           {/* Subtitle */}
-          <p className="mb-5 leading-relaxed line-clamp-2"
+          <motion.p
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 + titleLines.length * 0.12, duration: 0.6, ease: appleEase }}
+            className="mb-5 leading-relaxed line-clamp-2"
             style={{
               fontSize: 'clamp(11px, 1.8vw, 13px)',
               color: 'rgba(255,255,255,0.5)',
             }}>
             {b.subtitle || b.sub}
-          </p>
+          </motion.p>
 
-          {/* CTA */}
-          <Link
-            to={b.link || '/shop'}
-            className="btn-shine inline-flex items-center gap-2 font-bold text-white rounded-xl w-fit group transition-all hover:-translate-y-0.5"
-            style={{
-              background: b.accent,
-              boxShadow: `0 6px 20px ${b.accent}55`,
-              padding: '10px 24px',
-              fontSize: 13,
-            }}>
-            {b.cta}
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-          </Link>
+          {/* CTA Button */}
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 + titleLines.length * 0.12, duration: 0.6, ease: appleEase }}>
+            <Link
+              to={b.link || '/shop'}
+              className="btn-shine inline-flex items-center gap-2 font-bold text-white rounded-xl w-fit group"
+              style={{
+                background: b.accent,
+                boxShadow: `0 6px 20px ${b.accent}55`,
+                padding: '10px 24px',
+                fontSize: 13,
+                transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
+              }}
+              onMouseEnter={e => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.transform = 'translateY(-3px)';
+                el.style.boxShadow = `0 12px 32px ${b.accent}77`;
+              }}
+              onMouseLeave={e => {
+                const el = e.currentTarget as HTMLElement;
+                el.style.transform = 'translateY(0)';
+                el.style.boxShadow = `0 6px 20px ${b.accent}55`;
+              }}>
+              {b.cta}
+              <motion.div
+                className="overflow-hidden"
+                whileHover={{ x: 2 }}
+                transition={{ type: 'spring', stiffness: 150, damping: 15 }}>
+                <ArrowRight className="w-4 h-4" />
+              </motion.div>
+            </Link>
+          </motion.div>
         </motion.div>
 
         {/* Right — зураг: тогтмол хэмжээ, emoji байхгүй */}
         <motion.div
           key={`i-${cur}`}
-          initial={{ opacity: 0, scale: 0.72, rotate: -8 * dir }}
-          animate={{ opacity: 1, scale: 1, rotate: 0 }}
-          transition={{ duration: 0.6, type: 'spring', stiffness: 160, damping: 18 }}
-          // Зургийн хэсэг: текстийн өргөнтэй ойролцоо
+          initial={{ opacity: 0, scale: 1.08 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 1.3, delay: 0.15, ease: appleEase }}
           className="flex-shrink-0 flex items-center justify-center"
           style={{ width: '38%', height: '100%' }}>
 
           {b.image_url ? (
-            <img
+            <motion.img
               src={b.image_url}
               alt=""
               className="animate-float object-contain"
+              whileHover={{ scale: 1.03 }}
+              transition={{ type: 'spring', stiffness: 120, damping: 20 }}
               style={{
-                // Тогтмол өндөр — banner-ийн өндрийн 85%
                 height: 240,
                 width: 'auto',
                 maxWidth: '100%',
                 filter: `drop-shadow(0 24px 40px ${b.accent}66)`,
               }}
             />
-          ) : (
-            // Зураг байхгүй бол хоосон — emoji харагдахгүй
-            null
-          )}
+          ) : null}
         </motion.div>
       </div>
 
       {/* Dots */}
       <div className="absolute bottom-2 sm:bottom-4 left-1/2 -translate-x-1/2 flex gap-1" style={{ zIndex: 3 }}>
         {bannerList.map((_: any, i: number) => (
-          <button
+          <motion.button
             key={i}
             onClick={() => { setDir(i > cur ? 1 : -1); setCur(i); }}
-            className="rounded-full transition-all duration-300"
-            style={{
+            initial={false}
+            animate={{
               width: i === cur ? 24 : 7,
-              height: 7,
               background: i === cur ? b.accent : 'rgba(255,255,255,0.3)',
               boxShadow: i === cur ? `0 0 8px ${b.accent}` : 'none',
+            }}
+            transition={{ duration: 0.4, ease: premiumEase }}
+            className="rounded-full"
+            style={{
+              height: 7,
             }}
           />
         ))}

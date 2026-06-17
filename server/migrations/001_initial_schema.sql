@@ -1,5 +1,3 @@
--- TechMart AI — Full PostgreSQL Schema
--- Run: psql techmart < migrations/001_initial_schema.sql
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
@@ -80,7 +78,7 @@ CREATE TABLE product_images (
 CREATE INDEX idx_product_images_product ON product_images(product_id);
 
 -- ─── PRODUCT SPECS ─────────────────────────────────────────────────────────
--- Flexible key-value spec system — supports any category without schema changes
+
 CREATE TABLE product_specs (
   id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,

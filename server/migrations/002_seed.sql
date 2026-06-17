@@ -1,5 +1,3 @@
--- TechMart AI — Seed Data
--- Run: psql techmart < migrations/002_seed.sql
 
 -- Admin user (password: Admin1234!)
 INSERT INTO users (id, email, password_hash, full_name, role) VALUES
