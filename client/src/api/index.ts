@@ -118,6 +118,7 @@ export const aiApi = {
 
 // ─── ADMIN ─────────────────────────────────────────────────────────────────
 export const adminApi = {
+  getDashboardStats: () => apiClient.get('/admin/dashboard-stats').then(r => r.data.data),
   getDashboard: () => apiClient.get('/admin/dashboard').then(r => r.data.data),
   getRevenueAnalytics: () => apiClient.get('/admin/analytics/revenue').then(r => r.data.data),
   getProductAnalytics: () => apiClient.get('/admin/analytics/products').then(r => r.data.data),

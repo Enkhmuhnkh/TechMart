@@ -23,18 +23,22 @@ function StatCard({ icon: Icon, label, value, color }: { icon: any; label: strin
 }
 
 export default function AdminDashboard() {
-  const { data, isLoading } = useQuery({ queryKey: ['admin-dashboard'], queryFn: adminApi.getDashboard });
-  const { data: revenue } = useQuery({ queryKey: ['admin-revenue'], queryFn: adminApi.getRevenueAnalytics });
-  const { data: products } = useQuery({ queryKey: ['admin-products'], queryFn: adminApi.getProductAnalytics });
+  const { data, isLoading } = useQuery({
+    queryKey: ['admin-dashboard-stats'],
+    queryFn: adminApi.getDashboardStats,
+  });
 
-  const revenueData = (revenue || []).map((r: any) => ({
-    month: new Date(r.month).toLocaleDateString('en', { month: 'short' }),
+  const { stats, monthlyRevenue, categoryStats, lowStockProducts, recentOrders, recentUsers } = data || {};
+
+  const revenueData = (monthlyRevenue || []).map((r: any) => ({
+    // Append T12:00:00 to avoid UTC midnight timezone shift
+    month: new Date(r.month + 'T12:00:00').toLocaleDateString('en', { month: 'short' }),
     орлого: Math.round(r.revenue / 1000000),
   }));
 
-  const categoryData = (products?.byCategory || []).slice(0, 5).map((c: any) => ({
+  const categoryData = (categoryStats || []).slice(0, 5).map((c: any) => ({
     name: c.category?.slice(0, 8),
-    зарагдсан: parseInt(c.units_sold) || 0,
+    зарагдсан: c.unitsSold || 0,
   }));
 
   if (isLoading) return (
@@ -46,8 +50,6 @@ export default function AdminDashboard() {
     </div>
   );
 
-  const { stats, lowStock, recentOrders, recentUsers } = data || {};
-
   return (
     <div className="space-y-5">
       <div>
@@ -57,10 +59,10 @@ export default function AdminDashboard() {
 
       {/* Stats — 2 col mobile, 4 col desktop */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard icon={DollarSign} label="Нийт орлого" value={formatPrice(stats?.revenue || 0)} color="bg-brand-primary" />
-        <StatCard icon={ShoppingBag} label="Захиалга" value={stats?.orders || 0} color="bg-emerald-500" />
-        <StatCard icon={Package} label="Бүтээгдэхүүн" value={stats?.products || 0} color="bg-amber-500" />
-        <StatCard icon={Users} label="Хэрэглэгч" value={stats?.users || 0} color="bg-purple-500" />
+        <StatCard icon={DollarSign} label="Нийт орлого" value={formatPrice(stats?.totalRevenue || 0)} color="bg-brand-primary" />
+        <StatCard icon={ShoppingBag} label="Захиалга" value={stats?.activeOrders || 0} color="bg-emerald-500" />
+        <StatCard icon={Package} label="Бүтээгдэхүүн" value={stats?.totalProducts || 0} color="bg-amber-500" />
+        <StatCard icon={Users} label="Хэрэглэгч" value={stats?.totalUsers || 0} color="bg-purple-500" />
       </div>
 
       {/* Charts */}
@@ -109,10 +111,10 @@ export default function AdminDashboard() {
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Нөөц бага</h3>
+            <h3 className="font-semibold text-sm" style={{ color: 'var(--text-primary)' }}>Нөөц бага (≤5)</h3>
           </div>
           <div className="space-y-2">
-            {(lowStock || []).slice(0, 6).map((p: any) => (
+            {(lowStockProducts || []).slice(0, 6).map((p: any) => (
               <div key={p.id} className="flex items-center justify-between text-sm gap-2">
                 <span className="truncate text-xs" style={{ color: 'var(--text-primary)' }}>{p.name}</span>
                 <span className={cn('badge flex-shrink-0 text-xs', p.stock_quantity === 0 ? 'badge-danger' : 'badge-warning')}>
@@ -120,7 +122,7 @@ export default function AdminDashboard() {
                 </span>
               </div>
             ))}
-            {(!lowStock || lowStock.length === 0) && (
+            {(!lowStockProducts || lowStockProducts.length === 0) && (
               <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Бүх бүтээгдэхүүн нөөцтэй ✓</p>
             )}
           </div>
