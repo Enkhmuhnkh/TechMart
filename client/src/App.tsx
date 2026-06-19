@@ -35,13 +35,7 @@ const AdminSettings = lazy(() => import('./pages/admin/Settings'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: {
-      retry: (failureCount, error: any) => {
-        if (error?.response?.status >= 400 && error?.response?.status < 500) return false;
-        return failureCount < 1;
-      },
-      staleTime: 5 * 60 * 1000,
-    },
+    queries: { retry: 1, staleTime: 5 * 60 * 1000 },
     mutations: { retry: 0 },
   },
 });
