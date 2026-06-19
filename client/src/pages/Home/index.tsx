@@ -375,6 +375,7 @@ function HeroBanner() {
             className="rounded-full"
             style={{
               height: 7,
+              minHeight: 'unset',
             }}
           />
         ))}

@@ -5,6 +5,7 @@ import { authApi } from '../api';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '../utils';
 import { useState } from 'react';
+import { useStoreSettings } from '../hooks';
 
 const NAV = [
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -21,6 +22,7 @@ export function AdminLayout() {
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { store_name, store_logo } = useStoreSettings();
 
   const handleLogout = async () => {
     try { await authApi.logout(); } catch {}
@@ -33,11 +35,15 @@ export function AdminLayout() {
       {/* Logo */}
       <div className="p-4 border-b flex items-center justify-between" style={{ borderColor: 'var(--border)' }}>
         <Link to="/" className="flex items-center gap-2" onClick={() => setSidebarOpen(false)}>
-          <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">T</span>
+          <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center overflow-hidden"
+            style={{ background: store_logo ? 'transparent' : undefined }}>
+            {store_logo
+              ? <img src={store_logo} alt={store_name} className="w-full h-full object-contain" />
+              : <span className="text-white font-bold text-sm">{store_name[0]?.toUpperCase() || 'T'}</span>
+            }
           </div>
           <div>
-            <p className="font-display font-bold text-sm" style={{ color: 'var(--text-primary)' }}>TechMart</p>
+            <p className="font-display font-bold text-sm" style={{ color: 'var(--text-primary)' }}>{store_name}</p>
             <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>Admin Panel</p>
           </div>
         </Link>

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { productsApi, cartApi, ordersApi, wishlistApi, authApi } from '../api';
+import { productsApi, cartApi, ordersApi, wishlistApi, authApi, adminApi } from '../api';
 import { useCartStore, useWishlistStore } from '../store';
 import type { ProductFilters } from '../types';
 import toast from 'react-hot-toast';
@@ -168,6 +168,21 @@ export function useToggleWishlist() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['wishlist'] }),
     onError: (_, productId) => toggle(productId),
   });
+}
+
+// ─── STORE SETTINGS ────────────────────────────────────────────────────────
+export function useStoreSettings() {
+  const { data } = useQuery({
+    queryKey: ['store-settings'],
+    queryFn: () => adminApi.getSettings(),
+    staleTime: 60_000,
+  });
+  return {
+    store_name: data?.store_name || 'TechMart',
+    store_logo: data?.store_logo || '',
+    store_email: data?.store_email || '',
+    store_phone: data?.store_phone || '',
+  };
 }
 
 // ─── PROFILE ───────────────────────────────────────────────────────────────

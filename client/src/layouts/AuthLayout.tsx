@@ -1,5 +1,6 @@
 import { Outlet, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useStoreSettings } from '../hooks';
 
 const FEATURES = [
   { icon: '🚀', title: 'Хурдан хүргэлт', desc: 'Улаанбаатар дотор 24 цагт' },
@@ -10,8 +11,8 @@ const FEATURES = [
 
 export function AuthLayout() {
 
-  const storeName = 'TechMart';
-  const storeLogo = null;
+  const { store_name: storeName, store_logo } = useStoreSettings();
+  const storeLogo = store_logo || null;
 
   return (
     <div className="min-h-screen flex" style={{ background: 'var(--surface-0)' }}>

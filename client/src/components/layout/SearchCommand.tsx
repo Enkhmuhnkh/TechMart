@@ -93,8 +93,30 @@ export function SearchCommand({ open, onClose }: SearchCommandProps) {
   }, [open, onClose]);
 
   useEffect(() => {
+    const root = document.getElementById('root');
     document.body.style.overflow = open ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    if (open) {
+      if (root) {
+        root.style.filter = 'blur(6px)';
+        root.style.transform = 'scale(0.98)';
+        root.style.transition = 'filter 0.25s ease, transform 0.25s ease';
+        root.style.pointerEvents = 'none';
+      }
+    } else {
+      if (root) {
+        root.style.filter = '';
+        root.style.transform = '';
+        root.style.pointerEvents = '';
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+      if (root) {
+        root.style.filter = '';
+        root.style.transform = '';
+        root.style.pointerEvents = '';
+      }
+    };
   }, [open]);
 
   const { data, isFetching } = useQuery({
@@ -147,9 +169,7 @@ export function SearchCommand({ open, onClose }: SearchCommandProps) {
             transition={{ duration: 0.2 }}
             style={{
               position: 'fixed', inset: 0, zIndex: 9000,
-              background: 'rgba(0,0,0,0.55)',
-              backdropFilter: 'blur(16px)',
-              WebkitBackdropFilter: 'blur(16px)',
+              background: 'rgba(0,0,0,0.5)',
             }}
             onClick={onClose}
           />

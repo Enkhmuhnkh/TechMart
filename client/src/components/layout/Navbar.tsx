@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore, useCartStore, useUIStore } from '../../store';
 import { authApi } from '../../api';
+import { useStoreSettings } from '../../hooks';
 import { SearchCommand } from './SearchCommand';
 import toast from 'react-hot-toast';
 
@@ -19,6 +20,7 @@ export function Navbar() {
   const [scrolled, setScrolled] = useState(false);
 
   const count = itemCount();
+  const { store_name, store_logo } = useStoreSettings();
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 4);
@@ -72,15 +74,20 @@ export function Navbar() {
             <motion.div
               whileHover={{ scale: 1.08 }}
               whileTap={{ scale: 0.93 }}
-              className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-              style={{ background: 'linear-gradient(135deg, #6C63FF, #a855f7)' }}
+              className="w-6 sm:w-7 h-6 sm:h-7 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden"
+              style={{ background: store_logo ? 'transparent' : 'linear-gradient(135deg, #6C63FF, #a855f7)' }}
             >
-              <span className="font-semibold text-xs text-white"
-                style={{ fontFamily: "'DM Mono', monospace" }}>T</span>
+              {store_logo
+                ? <img src={store_logo} alt={store_name} className="w-full h-full object-contain" />
+                : <span className="font-semibold text-xs text-white"
+                    style={{ fontFamily: "'DM Mono', monospace" }}>
+                    {store_name[0]?.toUpperCase() || 'T'}
+                  </span>
+              }
             </motion.div>
             <span className="hidden sm:block font-medium text-sm flex-shrink-0"
               style={{ color: 'var(--ink)', letterSpacing: '-0.02em' }}>
-              TechMart
+              {store_name}
             </span>
           </Link>
 
