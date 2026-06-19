@@ -6,7 +6,7 @@ import {
   Save, Upload, X, Check, Package, Image, Plus, Trash2,
   Megaphone, Award, ChevronUp, ChevronDown, Store, Search,
   Link as LinkIcon, TrendingUp, CreditCard, Shield, CheckCircle,
-  AlertCircle, ExternalLink
+  AlertCircle, ExternalLink, Columns
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -29,6 +29,26 @@ interface PromoBannerItem {
 interface TrustItem {
   icon: string; title: string; desc: string; color: string;
 }
+
+interface FooterLink { label: string; href: string; }
+interface FooterColumn { title: string; links: FooterLink[]; }
+interface FooterConfig {
+  description: string;
+  copyright: string;
+  tagline: string;
+  columns: FooterColumn[];
+}
+
+const DEFAULT_FOOTER: FooterConfig = {
+  description: "Mongolia's premier AI-powered tech store.",
+  copyright: '',
+  tagline: 'Built with ❤️ in Mongolia',
+  columns: [
+    { title: 'Shop', links: [{ label: 'Laptops', href: '/shop?category=laptops' }, { label: 'Phones', href: '/shop?category=phones' }, { label: 'All Products', href: '/shop' }] },
+    { title: 'Company', links: [{ label: 'About', href: '/about' }, { label: 'AI Assistant', href: '/ai' }, { label: 'Compare', href: '/compare' }] },
+    { title: 'Support', links: [{ label: 'Orders', href: '/orders' }, { label: 'Profile', href: '/profile' }, { label: 'Contact', href: '/contact' }] },
+  ],
+};
 
 const DEFAULT_PROMO: PromoBannerItem[] = [
   { id: 1, tag: 'Онцлох', title: 'Хөгжмийн туршлагаа\nсайжруулаарай', subtitle: 'AirPods, Sony, Bose — шилдэг чихэвчнүүд', cta: 'Одоо авах', link: '/shop?category=earbuds', emoji: '🎧', accent: '#00D4AA', image_url: '', bg_image_url: '', bg: 'linear-gradient(135deg, #0d0d1a 0%, #1a0a2e 50%, #0d1a0d 100%)' },
@@ -247,7 +267,7 @@ function PaymentTab() {
 export default function AdminSettings() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'promo' | 'sidebar' | 'trust' | 'announce' | 'payment'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'promo' | 'sidebar' | 'trust' | 'announce' | 'payment' | 'footer'>('store');
 
   const [storeInfo, setStoreInfo] = useState({ store_name: 'TechMart', store_phone: '', store_email: '', announcement: '', store_logo: '' });
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -257,6 +277,7 @@ export default function AdminSettings() {
   const [trustItems, setTrustItems] = useState<TrustItem[]>([]);
   const [saleSearch, setSaleSearch] = useState('');
   const [selectedSaleIds, setSelectedSaleIds] = useState<string[]>([]);
+  const [footerData, setFooterData] = useState<FooterConfig>(DEFAULT_FOOTER);
 
   const fileRefs = useRef<Record<string, HTMLInputElement | null>>({});
   const logoFileRef = useRef<HTMLInputElement | null>(null);
@@ -273,6 +294,7 @@ export default function AdminSettings() {
     try { setTrustItems(JSON.parse(settings.trust_items || '[]')); } catch { setTrustItems([]); }
     try { setSelectedSaleIds(JSON.parse(settings.sidebar_sale_product_ids || '[]')); } catch { setSelectedSaleIds([]); }
     try { const pb = JSON.parse(settings.promo_banners || '[]'); setPromoBanners(pb.length === 2 ? pb : DEFAULT_PROMO); } catch { setPromoBanners(DEFAULT_PROMO); }
+    try { const f = JSON.parse(settings.footer_settings || '{}'); setFooterData(prev => ({ ...prev, ...f })); } catch { setFooterData(DEFAULT_FOOTER); }
   }, [settings]);
 
   const saveMutation = useMutation({
@@ -283,7 +305,7 @@ export default function AdminSettings() {
 
   const handleSave = () => {
     setSaving(true);
-    saveMutation.mutate({ ...storeInfo, hero_banners: JSON.stringify(banners), promo_banners: JSON.stringify(promoBanners), trust_items: JSON.stringify(trustItems), sidebar_sale_product_ids: JSON.stringify(selectedSaleIds) });
+    saveMutation.mutate({ ...storeInfo, hero_banners: JSON.stringify(banners), promo_banners: JSON.stringify(promoBanners), trust_items: JSON.stringify(trustItems), sidebar_sale_product_ids: JSON.stringify(selectedSaleIds), footer_settings: JSON.stringify(footerData) });
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -329,6 +351,7 @@ export default function AdminSettings() {
     { id: 'trust',   icon: <Award className="w-4 h-4" />,       label: 'Давуу тал' },
     { id: 'announce',icon: <Megaphone className="w-4 h-4" />,   label: 'Зар' },
     { id: 'payment', icon: <CreditCard className="w-4 h-4" />,  label: 'Төлбөр' },
+    { id: 'footer',  icon: <Columns className="w-4 h-4" />,     label: 'Footer' },
   ] as const;
 
   if (isLoading) return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-2xl" />)}</div>;
@@ -647,6 +670,100 @@ export default function AdminSettings() {
 
       {/* ── Төлбөр ── */}
       {activeTab === 'payment' && <PaymentTab />}
+
+      {/* ── Footer ── */}
+      {activeTab === 'footer' && (
+        <div className="space-y-4">
+          <SectionCard icon={<Columns className="w-4 h-4 text-brand-primary" />} title="Footer тохиргоо">
+            <div className="space-y-5">
+
+              {/* Description */}
+              <div>
+                <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+                  Дэлгүүрийн тайлбар <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>(footer-ын зүүн дээр)</span>
+                </label>
+                <input value={footerData.description} onChange={e => setFooterData(f => ({ ...f, description: e.target.value }))} className="input text-sm" placeholder="Mongolia's premier tech store..." />
+              </div>
+
+              <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+
+              {/* Link columns */}
+              <div>
+                <p className="text-xs font-semibold mb-3" style={{ color: 'var(--text-secondary)' }}>Линкийн баганууд</p>
+                <div className="space-y-4">
+                  {footerData.columns.map((col, ci) => (
+                    <div key={ci} className="border rounded-2xl p-4" style={{ borderColor: 'var(--border)' }}>
+                      <div className="mb-3">
+                        <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Баганын гарчиг</label>
+                        <input value={col.title} onChange={e => setFooterData(f => { const c = [...f.columns]; c[ci] = { ...c[ci], title: e.target.value }; return { ...f, columns: c }; })} className="input text-sm" />
+                      </div>
+                      <div className="space-y-2">
+                        {col.links.map((link, li) => (
+                          <div key={li} className="flex items-center gap-2">
+                            <input value={link.label} onChange={e => setFooterData(f => { const c = [...f.columns]; const l = [...c[ci].links]; l[li] = { ...l[li], label: e.target.value }; c[ci] = { ...c[ci], links: l }; return { ...f, columns: c }; })} placeholder="Нэр" className="input text-xs flex-1" />
+                            <input value={link.href} onChange={e => setFooterData(f => { const c = [...f.columns]; const l = [...c[ci].links]; l[li] = { ...l[li], href: e.target.value }; c[ci] = { ...c[ci], links: l }; return { ...f, columns: c }; })} placeholder="/shop?category=..." className="input text-xs flex-[2]" />
+                            <button onClick={() => setFooterData(f => { const c = [...f.columns]; c[ci] = { ...c[ci], links: c[ci].links.filter((_, i) => i !== li) }; return { ...f, columns: c }; })} disabled={col.links.length <= 1} className="p-1.5 rounded-lg text-red-500 hover:bg-red-50 transition-colors disabled:opacity-30">
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        {col.links.length < 6 && (
+                          <button onClick={() => setFooterData(f => { const c = [...f.columns]; c[ci] = { ...c[ci], links: [...c[ci].links, { label: '', href: '/' }] }; return { ...f, columns: c }; })} className="text-xs flex items-center gap-1 mt-1 hover:underline" style={{ color: 'var(--brand-primary)' }}>
+                            <Plus className="w-3 h-3" /> Линк нэмэх
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t" style={{ borderColor: 'var(--border)' }} />
+
+              {/* Copyright + tagline */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
+                    Зохиогчийн эрх <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>(хоосон = авто)</span>
+                  </label>
+                  <input value={footerData.copyright} onChange={e => setFooterData(f => ({ ...f, copyright: e.target.value }))} className="input text-sm" placeholder={`© ${new Date().getFullYear()} [дэлгүүрийн нэр]. All rights reserved.`} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>Баруун доод бичвэр</label>
+                  <input value={footerData.tagline} onChange={e => setFooterData(f => ({ ...f, tagline: e.target.value }))} className="input text-sm" placeholder="Built with ❤️ in Mongolia" />
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div>
+                <label className="text-xs font-semibold mb-2 block" style={{ color: 'var(--text-secondary)' }}>Урьдчилан харах</label>
+                <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border)', background: 'var(--surface-1)' }}>
+                  <div className="p-4 grid grid-cols-4 gap-4 text-left">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-2">
+                        <div className="w-5 h-5 rounded flex items-center justify-center text-white text-xs font-bold" style={{ background: 'var(--brand-primary)' }}>T</div>
+                        <span className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>Дэлгүүр</span>
+                      </div>
+                      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{footerData.description}</p>
+                    </div>
+                    {footerData.columns.map((col, i) => (
+                      <div key={i}>
+                        <p className="text-xs font-bold mb-2" style={{ color: 'var(--text-primary)' }}>{col.title || '—'}</p>
+                        {col.links.map((l, j) => <p key={j} className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>{l.label || '—'}</p>)}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="border-t px-4 py-2 flex justify-between items-center" style={{ borderColor: 'var(--border)' }}>
+                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{footerData.copyright || `© ${new Date().getFullYear()} TechMart AI`}</p>
+                    <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>{footerData.tagline}</p>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </SectionCard>
+        </div>
+      )}
 
       {activeTab !== 'payment' && (
         <div className="flex justify-end pt-2">
