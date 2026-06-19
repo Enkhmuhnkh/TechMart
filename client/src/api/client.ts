@@ -14,7 +14,9 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-refresh on 401
+// Auto-refresh on 401 — single shared promise to avoid duplicate refresh calls
+let refreshPromise: Promise<string> | null = null;
+
 apiClient.interceptors.response.use(
   (res) => res,
   async (err) => {
@@ -22,13 +24,22 @@ apiClient.interceptors.response.use(
     if (err.response?.status === 401 && !original._retry) {
       original._retry = true;
       try {
-        const refreshToken = localStorage.getItem('refresh_token');
-        const { data } = await axios.post((import.meta.env.VITE_API_URL || '') + '/api/auth/refresh', { refreshToken });
-        localStorage.setItem('access_token', data.data.accessToken);
-        localStorage.setItem('refresh_token', data.data.refreshToken);
-        original.headers.Authorization = `Bearer ${data.data.accessToken}`;
+        if (!refreshPromise) {
+          const storedRefresh = localStorage.getItem('refresh_token');
+          refreshPromise = axios
+            .post((import.meta.env.VITE_API_URL || '') + '/api/auth/refresh', { refreshToken: storedRefresh })
+            .then(({ data }) => {
+              localStorage.setItem('access_token', data.data.accessToken);
+              localStorage.setItem('refresh_token', data.data.refreshToken);
+              return data.data.accessToken as string;
+            })
+            .finally(() => { refreshPromise = null; });
+        }
+        const newToken = await refreshPromise;
+        original.headers.Authorization = `Bearer ${newToken}`;
         return apiClient(original);
       } catch {
+        refreshPromise = null;
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         window.location.href = '/login';
