@@ -369,8 +369,24 @@ router.get('/orders', async (req: Request, res: Response, next: NextFunction) =>
 router.patch('/orders/:id/status', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status } = req.body;
+    const VALID_STATUSES = ['pending', 'processing', 'shipped', 'delivered', 'cancelled', 'refunded'];
+    if (!VALID_STATUSES.includes(status)) {
+      res.status(400).json({ success: false, error: { message: 'Буруу статус утга' } });
+      return;
+    }
+
+    // Cash orders: auto-mark paid when delivered
+    // QPay orders: payment_status is set by webhook/callback — don't touch it here
     const order = await queryOne(
-      'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
+      `UPDATE orders
+       SET status         = $1,
+           payment_status = CASE
+             WHEN $1 = 'delivered' AND payment_method = 'cash' THEN 'paid'
+             ELSE payment_status
+           END,
+           updated_at = NOW()
+       WHERE id = $2
+       RETURNING *`,
       [status, req.params.id]
     );
     res.json({ success: true, data: order });
