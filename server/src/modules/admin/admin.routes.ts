@@ -8,104 +8,233 @@ import { parsePagination, buildMeta } from '../../shared/paginate';
 const router = Router();
 router.use(requireAuth, requireAdmin);
 
-// Unified dashboard stats — single request, all data
+// Comprehensive dashboard stats — all data in one parallel request
 router.get('/dashboard-stats', async (_req: Request, res: Response, next: NextFunction) => {
   try {
-    const [statsRow, monthlyRevenue, categoryStats, lowStock, recentOrders, recentUsers] =
-      await Promise.all([
-        // Revenue = delivered only; Orders = exclude cancelled/refunded
-        queryOne<{
-          total_revenue: string;
-          active_orders: string;
-          total_products: string;
-          total_users: string;
-          total_brands: string;
-        }>(`
-          SELECT
-            (SELECT COALESCE(SUM(total_amount), 0) FROM orders WHERE status = 'delivered')            AS total_revenue,
-            (SELECT COUNT(*) FROM orders WHERE status NOT IN ('cancelled', 'refunded'))               AS active_orders,
-            (SELECT COUNT(*) FROM products WHERE status = 'active')                                   AS total_products,
-            (SELECT COUNT(*) FROM users WHERE role = 'customer')                                      AS total_users,
-            (SELECT COUNT(*) FROM brands)                                                              AS total_brands
-        `),
+    const [
+      kpiRow,
+      userRow,
+      productRow,
+      dailyRevenue,
+      monthlyRevenue,
+      ordersByStatus,
+      topProducts,
+      categoryStats,
+      lowStock,
+      recentOrders,
+      recentUsers,
+    ] = await Promise.all([
 
-        // Last 6 months of delivered-order revenue
-        query<{ month: string; revenue: string; order_count: string }>(`
-          SELECT
-            TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM-01') AS month,
-            COALESCE(SUM(total_amount), 0)                          AS revenue,
-            COUNT(*)                                                AS order_count
-          FROM orders
-          WHERE status = 'delivered'
-            AND created_at >= DATE_TRUNC('month', NOW()) - INTERVAL '5 months'
-          GROUP BY DATE_TRUNC('month', created_at)
-          ORDER BY DATE_TRUNC('month', created_at)
-        `),
+      // ① Revenue + order KPI comparisons (today/month/year vs prior period)
+      queryOne<{
+        today_revenue: string; yesterday_revenue: string;
+        this_month_revenue: string; last_month_revenue: string;
+        this_year_revenue: string; last_year_revenue: string;
+        today_orders: string; yesterday_orders: string;
+        this_month_orders: string; last_month_orders: string;
+        active_orders: string; avg_order_value: string;
+      }>(`
+        SELECT
+          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE
+            AND status = 'delivered' THEN total_amount END), 0)                                         AS today_revenue,
+          COALESCE(SUM(CASE WHEN DATE(created_at) = CURRENT_DATE - 1
+            AND status = 'delivered' THEN total_amount END), 0)                                         AS yesterday_revenue,
+          COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())
+            AND status = 'delivered' THEN total_amount END), 0)                                         AS this_month_revenue,
+          COALESCE(SUM(CASE WHEN DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW() - INTERVAL '1 month')
+            AND status = 'delivered' THEN total_amount END), 0)                                         AS last_month_revenue,
+          COALESCE(SUM(CASE WHEN EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW())
+            AND status = 'delivered' THEN total_amount END), 0)                                         AS this_year_revenue,
+          COALESCE(SUM(CASE WHEN EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM NOW()) - 1
+            AND status = 'delivered' THEN total_amount END), 0)                                         AS last_year_revenue,
+          COUNT(*) FILTER (WHERE DATE(created_at) = CURRENT_DATE
+            AND status NOT IN ('cancelled','refunded'))                                                  AS today_orders,
+          COUNT(*) FILTER (WHERE DATE(created_at) = CURRENT_DATE - 1
+            AND status NOT IN ('cancelled','refunded'))                                                  AS yesterday_orders,
+          COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW())
+            AND status NOT IN ('cancelled','refunded'))                                                  AS this_month_orders,
+          COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW() - INTERVAL '1 month')
+            AND status NOT IN ('cancelled','refunded'))                                                  AS last_month_orders,
+          COUNT(*) FILTER (WHERE status NOT IN ('cancelled','refunded'))                                 AS active_orders,
+          COALESCE(ROUND(AVG(total_amount) FILTER (WHERE status NOT IN ('cancelled','refunded')), 0), 0) AS avg_order_value
+        FROM orders
+      `),
 
-        // Units sold per category (delivered orders only)
-        query<{ category: string; units_sold: string }>(`
-          SELECT
-            c.name                          AS category,
-            COALESCE(SUM(oi.quantity), 0)   AS units_sold
-          FROM categories c
-          LEFT JOIN products p   ON p.category_id = c.id
-          LEFT JOIN order_items oi ON oi.product_id = p.id
-          LEFT JOIN orders o     ON o.id = oi.order_id AND o.status = 'delivered'
-          GROUP BY c.name
-          ORDER BY units_sold DESC
-        `),
+      // ② User growth: total + this month vs last month
+      queryOne<{ total: string; new_this_month: string; new_last_month: string }>(`
+        SELECT
+          COUNT(*)                                                                                               AS total,
+          COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW()))                 AS new_this_month,
+          COUNT(*) FILTER (WHERE DATE_TRUNC('month', created_at) = DATE_TRUNC('month', NOW() - INTERVAL '1 month')) AS new_last_month
+        FROM users WHERE role = 'customer'
+      `),
 
-        // Low stock alert: stock <= 5
-        query(`
-          SELECT id, name, stock_quantity
-          FROM products
-          WHERE stock_quantity <= 5 AND status = 'active'
-          ORDER BY stock_quantity ASC
-          LIMIT 20
-        `),
+      // ③ Product inventory snapshot
+      queryOne<{ total_active: string; out_of_stock: string; low_stock_count: string }>(`
+        SELECT
+          COUNT(*) FILTER (WHERE status = 'active')                              AS total_active,
+          COUNT(*) FILTER (WHERE stock_quantity = 0 AND status = 'active')       AS out_of_stock,
+          COUNT(*) FILTER (WHERE stock_quantity <= 5 AND stock_quantity > 0 AND status = 'active') AS low_stock_count
+        FROM products
+      `),
 
-        // Recent 5 orders with customer info
-        query(`
-          SELECT o.id, o.status, o.total_amount, o.created_at,
-                 u.full_name, u.email
-          FROM orders o
-          JOIN users u ON o.user_id = u.id
-          ORDER BY o.created_at DESC
-          LIMIT 5
-        `),
+      // ④ Daily revenue — last 30 days
+      query<{ day: string; revenue: string; order_count: string }>(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS day,
+          COALESCE(SUM(total_amount), 0)                        AS revenue,
+          COUNT(*)                                              AS order_count
+        FROM orders
+        WHERE status = 'delivered'
+          AND created_at >= NOW() - INTERVAL '30 days'
+        GROUP BY DATE_TRUNC('day', created_at)
+        ORDER BY DATE_TRUNC('day', created_at)
+      `),
 
-        // Recent 5 registered customers
-        query(`
-          SELECT id, full_name, email, created_at
-          FROM users
-          WHERE role = 'customer'
-          ORDER BY created_at DESC
-          LIMIT 5
-        `),
-      ]);
+      // ⑤ Monthly revenue — last 12 months
+      query<{ month: string; revenue: string; order_count: string }>(`
+        SELECT
+          TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM-01') AS month,
+          COALESCE(SUM(total_amount), 0)                          AS revenue,
+          COUNT(*)                                                AS order_count
+        FROM orders
+        WHERE status = 'delivered'
+          AND created_at >= DATE_TRUNC('month', NOW()) - INTERVAL '11 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+        ORDER BY DATE_TRUNC('month', created_at)
+      `),
+
+      // ⑥ Orders count by each status
+      query<{ status: string; count: string }>(`
+        SELECT status, COUNT(*) AS count
+        FROM orders
+        GROUP BY status
+        ORDER BY count DESC
+      `),
+
+      // ⑦ Top 10 products by revenue (delivered orders only)
+      query<{ id: string; name: string; units_sold: string; revenue: string; image_url: string | null }>(`
+        SELECT
+          p.id,
+          p.name,
+          SUM(oi.quantity)              AS units_sold,
+          SUM(oi.quantity * oi.unit_price) AS revenue,
+          (SELECT url FROM product_images
+           WHERE product_id = p.id AND is_primary = true LIMIT 1) AS image_url
+        FROM order_items oi
+        JOIN products p ON oi.product_id = p.id
+        JOIN orders o   ON o.id = oi.order_id AND o.status = 'delivered'
+        GROUP BY p.id, p.name
+        ORDER BY revenue DESC
+        LIMIT 10
+      `),
+
+      // ⑧ Revenue + units sold per category (delivered only)
+      query<{ category: string; units_sold: string; revenue: string }>(`
+        SELECT
+          c.name                              AS category,
+          COALESCE(SUM(oi.quantity), 0)       AS units_sold,
+          COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS revenue
+        FROM categories c
+        LEFT JOIN products p     ON p.category_id = c.id
+        LEFT JOIN order_items oi ON oi.product_id = p.id
+        LEFT JOIN orders o       ON o.id = oi.order_id AND o.status = 'delivered'
+        GROUP BY c.name
+        ORDER BY revenue DESC
+      `),
+
+      // ⑨ Low stock products (stock ≤ 5)
+      query(`
+        SELECT id, name, stock_quantity
+        FROM products
+        WHERE stock_quantity <= 5 AND status = 'active'
+        ORDER BY stock_quantity ASC
+        LIMIT 20
+      `),
+
+      // ⑩ Recent 10 orders with item count
+      query(`
+        SELECT o.id, o.status, o.total_amount, o.created_at, o.payment_status,
+               u.full_name, u.email,
+               COUNT(oi.id) AS item_count
+        FROM orders o
+        JOIN users u ON o.user_id = u.id
+        LEFT JOIN order_items oi ON oi.order_id = o.id
+        GROUP BY o.id, u.full_name, u.email
+        ORDER BY o.created_at DESC
+        LIMIT 10
+      `),
+
+      // ⑪ Recent 5 registered customers
+      query(`
+        SELECT id, full_name, email, created_at
+        FROM users WHERE role = 'customer'
+        ORDER BY created_at DESC
+        LIMIT 5
+      `),
+    ]);
 
     res.json({
       success: true,
       data: {
-        stats: {
-          totalRevenue:  parseFloat(statsRow?.total_revenue  || '0'),
-          activeOrders:  parseInt(statsRow?.active_orders    || '0'),
-          totalProducts: parseInt(statsRow?.total_products   || '0'),
-          totalUsers:    parseInt(statsRow?.total_users      || '0'),
-          totalBrands:   parseInt(statsRow?.total_brands     || '0'),
+        revenue: {
+          today:     parseFloat(kpiRow?.today_revenue      || '0'),
+          yesterday: parseFloat(kpiRow?.yesterday_revenue  || '0'),
+          thisMonth: parseFloat(kpiRow?.this_month_revenue || '0'),
+          lastMonth: parseFloat(kpiRow?.last_month_revenue || '0'),
+          thisYear:  parseFloat(kpiRow?.this_year_revenue  || '0'),
+          lastYear:  parseFloat(kpiRow?.last_year_revenue  || '0'),
         },
+        orders: {
+          today:         parseInt(kpiRow?.today_orders      || '0'),
+          yesterday:     parseInt(kpiRow?.yesterday_orders  || '0'),
+          thisMonth:     parseInt(kpiRow?.this_month_orders || '0'),
+          lastMonth:     parseInt(kpiRow?.last_month_orders || '0'),
+          active:        parseInt(kpiRow?.active_orders     || '0'),
+          avgOrderValue: parseFloat(kpiRow?.avg_order_value || '0'),
+        },
+        users: {
+          total:        parseInt(userRow?.total          || '0'),
+          newThisMonth: parseInt(userRow?.new_this_month || '0'),
+          newLastMonth: parseInt(userRow?.new_last_month || '0'),
+        },
+        products: {
+          totalActive:   parseInt(productRow?.total_active    || '0'),
+          outOfStock:    parseInt(productRow?.out_of_stock    || '0'),
+          lowStockCount: parseInt(productRow?.low_stock_count || '0'),
+        },
+        dailyRevenue: dailyRevenue.rows.map(r => ({
+          day:        r.day,
+          revenue:    parseFloat(r.revenue),
+          orderCount: parseInt(r.order_count),
+        })),
         monthlyRevenue: monthlyRevenue.rows.map(r => ({
           month:      r.month,
           revenue:    parseFloat(r.revenue),
           orderCount: parseInt(r.order_count),
         })),
+        ordersByStatus: ordersByStatus.rows.map(r => ({
+          status: r.status,
+          count:  parseInt(r.count),
+        })),
+        topProducts: topProducts.rows.map(r => ({
+          id:        r.id,
+          name:      r.name,
+          unitsSold: parseInt(r.units_sold),
+          revenue:   parseFloat(r.revenue),
+          imageUrl:  r.image_url,
+        })),
         categoryStats: categoryStats.rows.map(r => ({
           category:  r.category,
           unitsSold: parseInt(r.units_sold),
+          revenue:   parseFloat(r.revenue),
         })),
         lowStockProducts: lowStock.rows,
-        recentOrders:     recentOrders.rows,
-        recentUsers:      recentUsers.rows,
+        recentOrders: recentOrders.rows.map((r: any) => ({
+          ...r,
+          item_count: parseInt(r.item_count),
+        })),
+        recentUsers: recentUsers.rows,
       },
     });
   } catch (err) { next(err); }
@@ -352,7 +481,7 @@ router.get('/settings/sale-products', async (_req: Request, res: Response, next:
     );
     const customIds = setting ? JSON.parse(setting.value || '[]') : [];
 
-    let products;
+    let products: any[];
     if (customIds.length > 0) {
       // Return custom selected products
       const { rows } = await query(
