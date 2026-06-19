@@ -383,8 +383,7 @@ router.patch('/orders/:id/status', async (req: Request, res: Response, next: Nex
            payment_status = CASE
              WHEN $1 = 'delivered' AND payment_method = 'cash' THEN 'paid'
              ELSE payment_status
-           END,
-           updated_at = NOW()
+           END
        WHERE id = $2
        RETURNING *`,
       [status, req.params.id]
