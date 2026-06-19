@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcryptjs';
 import { query, queryOne } from '../../shared/db';
 import { requireAuth } from '../../middleware/auth.middleware';
 import { requireAdmin } from '../../middleware/admin.middleware';
@@ -484,75 +483,6 @@ router.post('/settings', async (req: Request, res: Response, next: NextFunction)
         [key, typeof value === 'object' ? JSON.stringify(value) : String(value)]
       );
     }
-    res.json({ success: true });
-  } catch (err) { next(err); }
-});
-
-// ═══════════════════════════════════════════════════
-// ADMIN CREDENTIALS (email + password change)
-// ═══════════════════════════════════════════════════
-
-router.patch('/credentials', async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { current_password, new_email, new_password } = req.body as {
-      current_password: string;
-      new_email?: string;
-      new_password?: string;
-    };
-
-    if (!current_password) {
-      res.status(400).json({ success: false, error: { message: 'Одоогийн нууц үг оруулна уу' } });
-      return;
-    }
-
-    const userId = req.user!.userId;
-    const user = await queryOne<{ id: string; email: string; password_hash: string }>(
-      'SELECT id, email, password_hash FROM users WHERE id = $1',
-      [userId]
-    );
-    if (!user) { res.status(404).json({ success: false, error: { message: 'Хэрэглэгч олдсонгүй' } }); return; }
-
-    const match = await bcrypt.compare(current_password, user.password_hash);
-    if (!match) {
-      res.status(400).json({ success: false, error: { message: 'Одоогийн нууц үг буруу байна' } });
-      return;
-    }
-
-    const sets: string[] = [];
-    const vals: unknown[] = [];
-    let i = 1;
-
-    if (new_email && new_email !== user.email) {
-      const existing = await queryOne<{ id: string }>(
-        'SELECT id FROM users WHERE email = $1 AND id != $2',
-        [new_email, userId]
-      );
-      if (existing) {
-        res.status(400).json({ success: false, error: { message: 'Энэ имэйл хаяг аль хэдийн бүртгэлтэй байна' } });
-        return;
-      }
-      sets.push(`email = $${i++}`);
-      vals.push(new_email);
-    }
-
-    if (new_password) {
-      if (new_password.length < 6) {
-        res.status(400).json({ success: false, error: { message: 'Нууц үг хамгийн багадаа 6 тэмдэгт байх ёстой' } });
-        return;
-      }
-      const hash = await bcrypt.hash(new_password, 12);
-      sets.push(`password_hash = $${i++}`);
-      vals.push(hash);
-    }
-
-    if (!sets.length) {
-      res.status(400).json({ success: false, error: { message: 'Өөрчлөлт байхгүй байна' } });
-      return;
-    }
-
-    vals.push(userId);
-    await query(`UPDATE users SET ${sets.join(', ')} WHERE id = $${i}`, vals);
-
     res.json({ success: true });
   } catch (err) { next(err); }
 });

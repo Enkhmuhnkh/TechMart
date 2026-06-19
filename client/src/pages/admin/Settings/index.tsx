@@ -6,7 +6,7 @@ import {
   Save, Upload, X, Check, Package, Image, Plus, Trash2,
   Megaphone, Award, ChevronUp, ChevronDown, Store, Search,
   Link as LinkIcon, TrendingUp, CreditCard, Shield, CheckCircle,
-  AlertCircle, ExternalLink, Columns, KeyRound, Eye, EyeOff
+  AlertCircle, ExternalLink, Columns
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -263,143 +263,11 @@ function PaymentTab() {
   );
 }
 
-// ── Credentials tab ────────────────────────────────────────────────────────
-function CredentialsTab() {
-  const qc = useQueryClient();
-  const [form, setForm] = useState({ current_password: '', new_email: '', new_password: '', confirm_password: '' });
-  const [showCurrent, setShowCurrent] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-
-  const { data: me } = useQuery({ queryKey: ['admin-me'], queryFn: () => adminApi.getSettings() });
-
-  const mutation = useMutation({
-    mutationFn: () => {
-      if (form.new_password && form.new_password !== form.confirm_password) {
-        throw new Error('Нууц үг таарахгүй байна');
-      }
-      return adminApi.updateCredentials({
-        current_password: form.current_password,
-        ...(form.new_email ? { new_email: form.new_email } : {}),
-        ...(form.new_password ? { new_password: form.new_password } : {}),
-      });
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['admin-me'] });
-      toast.success('Амжилттай хадгалагдлаа ✓');
-      setForm({ current_password: '', new_email: '', new_password: '', confirm_password: '' });
-    },
-    onError: (err: any) => {
-      const msg = err?.response?.data?.error?.message || err?.message || 'Алдаа гарлаа';
-      toast.error(msg);
-    },
-  });
-
-  const currentEmail = (me as any)?.admin_email || '';
-
-  return (
-    <div className="space-y-5 max-w-lg">
-      <div className="card p-6 space-y-5">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'rgba(108,99,255,0.1)' }}>
-            <KeyRound className="w-5 h-5 text-brand-primary" />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm" style={{ color: 'var(--text-primary)' }}>Нэвтрэх мэдээлэл өөрчлөх</h3>
-            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Имэйл болон нууц үгийг солих</p>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
-            Одоогийн нууц үг <span className="text-red-500">*</span>
-          </label>
-          <div className="relative">
-            <input
-              type={showCurrent ? 'text' : 'password'}
-              value={form.current_password}
-              onChange={e => setForm(f => ({ ...f, current_password: e.target.value }))}
-              className="input text-sm pr-10"
-              placeholder="Одоогийн нууц үгээ оруулна уу"
-            />
-            <button type="button" onClick={() => setShowCurrent(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }}>
-              {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        <div className="border-t" style={{ borderColor: 'var(--border)' }} />
-
-        <div>
-          <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
-            Шинэ имэйл хаяг <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>(өөрчлөхгүй бол хоосон орхи)</span>
-          </label>
-          <input
-            type="email"
-            value={form.new_email}
-            onChange={e => setForm(f => ({ ...f, new_email: e.target.value }))}
-            className="input text-sm"
-            placeholder="admin@example.com"
-          />
-        </div>
-
-        <div className="border-t" style={{ borderColor: 'var(--border)' }} />
-
-        <div>
-          <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
-            Шинэ нууц үг <span className="font-normal" style={{ color: 'var(--text-tertiary)' }}>(өөрчлөхгүй бол хоосон орхи)</span>
-          </label>
-          <div className="relative">
-            <input
-              type={showNew ? 'text' : 'password'}
-              value={form.new_password}
-              onChange={e => setForm(f => ({ ...f, new_password: e.target.value }))}
-              className="input text-sm pr-10"
-              placeholder="Хамгийн багадаа 6 тэмдэгт"
-            />
-            <button type="button" onClick={() => setShowNew(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-tertiary)' }}>
-              {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-        </div>
-
-        {form.new_password && (
-          <div>
-            <label className="text-xs font-semibold mb-1 block" style={{ color: 'var(--text-secondary)' }}>
-              Нууц үг давтах
-            </label>
-            <input
-              type="password"
-              value={form.confirm_password}
-              onChange={e => setForm(f => ({ ...f, confirm_password: e.target.value }))}
-              className="input text-sm"
-              placeholder="Нууц үгийг дахин оруулна уу"
-              style={{ borderColor: form.confirm_password && form.new_password !== form.confirm_password ? '#EF4444' : undefined }}
-            />
-            {form.confirm_password && form.new_password !== form.confirm_password && (
-              <p className="text-xs mt-1 text-red-500">Нууц үг таарахгүй байна</p>
-            )}
-          </div>
-        )}
-
-        <button
-          onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || !form.current_password || (!form.new_email && !form.new_password)}
-          className="btn-primary flex items-center gap-2 mt-2 disabled:opacity-50">
-          <Save className="w-4 h-4" />
-          {mutation.isPending ? 'Хадгалж...' : 'Хадгалах'}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 // ── Main ────────────────────────────────────────────────────────────────────
 export default function AdminSettings() {
   const qc = useQueryClient();
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'promo' | 'sidebar' | 'trust' | 'announce' | 'payment' | 'footer' | 'credentials'>('store');
+  const [activeTab, setActiveTab] = useState<'store' | 'banners' | 'promo' | 'sidebar' | 'trust' | 'announce' | 'payment' | 'footer'>('store');
 
   const [storeInfo, setStoreInfo] = useState({ store_name: 'TechMart', store_phone: '', store_email: '', announcement: '', store_logo: '' });
   const [banners, setBanners] = useState<Banner[]>([]);
@@ -482,9 +350,8 @@ export default function AdminSettings() {
     { id: 'sidebar', icon: <Package className="w-4 h-4" />,     label: 'Хямдрал' },
     { id: 'trust',   icon: <Award className="w-4 h-4" />,       label: 'Давуу тал' },
     { id: 'announce',icon: <Megaphone className="w-4 h-4" />,   label: 'Зар' },
-    { id: 'payment',     icon: <CreditCard className="w-4 h-4" />,  label: 'Төлбөр' },
-    { id: 'footer',      icon: <Columns className="w-4 h-4" />,     label: 'Footer' },
-    { id: 'credentials', icon: <KeyRound className="w-4 h-4" />,    label: 'Бүртгэл' },
+    { id: 'payment', icon: <CreditCard className="w-4 h-4" />,  label: 'Төлбөр' },
+    { id: 'footer',  icon: <Columns className="w-4 h-4" />,     label: 'Footer' },
   ] as const;
 
   if (isLoading) return <div className="space-y-4">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="skeleton h-32 rounded-2xl" />)}</div>;
@@ -496,7 +363,7 @@ export default function AdminSettings() {
           <h1 className="font-display font-bold text-2xl" style={{ color: 'var(--text-primary)' }}>⚙️ Тохиргоо</h1>
           <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Home хуудасны контентыг удирдах</p>
         </div>
-        {activeTab !== 'payment' && activeTab !== 'credentials' && (
+        {activeTab !== 'payment' && (
           <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2">
             <Save className="w-4 h-4" /> {saving ? 'Хадгалж...' : 'Хадгалах'}
           </button>
@@ -804,9 +671,6 @@ export default function AdminSettings() {
       {/* ── Төлбөр ── */}
       {activeTab === 'payment' && <PaymentTab />}
 
-      {/* ── Бүртгэл ── */}
-      {activeTab === 'credentials' && <CredentialsTab />}
-
       {/* ── Footer ── */}
       {activeTab === 'footer' && (
         <div className="space-y-4">
@@ -901,7 +765,7 @@ export default function AdminSettings() {
         </div>
       )}
 
-      {activeTab !== 'payment' && activeTab !== 'credentials' && (
+      {activeTab !== 'payment' && (
         <div className="flex justify-end pt-2">
           <button onClick={handleSave} disabled={saving} className="btn-primary flex items-center gap-2 px-8">
             <Save className="w-4 h-4" /> {saving ? 'Хадгалж байна...' : 'Бүгдийг хадгалах'}
