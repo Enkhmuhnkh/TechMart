@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from '../store';
 
 export const apiClient = axios.create({
   baseURL: (import.meta.env.VITE_API_URL ? import.meta.env.VITE_API_URL + '/api' : '/api'),
@@ -29,9 +30,10 @@ apiClient.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.data.accessToken}`;
         return apiClient(original);
       } catch {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        window.location.href = '/login';
+        useAuthStore.getState().logout();
+        if (!window.location.pathname.startsWith('/login') && !window.location.pathname.startsWith('/register')) {
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(err);

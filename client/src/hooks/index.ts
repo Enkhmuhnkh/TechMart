@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsApi, cartApi, ordersApi, wishlistApi, authApi, adminApi } from '../api';
-import { useCartStore, useWishlistStore } from '../store';
+import { useAuthStore, useCartStore, useWishlistStore } from '../store';
 import type { ProductFilters } from '../types';
 import toast from 'react-hot-toast';
 
@@ -172,10 +172,12 @@ export function useToggleWishlist() {
 
 // ─── STORE SETTINGS ────────────────────────────────────────────────────────
 export function useStoreSettings() {
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const { data } = useQuery({
     queryKey: ['store-settings'],
     queryFn: () => adminApi.getSettings(),
     staleTime: 60_000,
+    enabled: isAuthenticated,
   });
   return {
     store_name: data?.store_name || 'TechMart',
