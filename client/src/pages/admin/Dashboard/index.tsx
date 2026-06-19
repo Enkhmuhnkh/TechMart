@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   Users, Package, ShoppingBag, DollarSign, AlertTriangle, TrendingUp,
-  ArrowUpRight, ArrowDownRight, BarChart2,
+  ArrowUpRight, ArrowDownRight, BarChart2, X, Search,
 } from 'lucide-react';
 import { cn } from '../../../utils';
 
@@ -38,6 +38,194 @@ const STATUS_COLOR: Record<string, string> = {
   cancelled:  '#ef4444',
   refunded:   '#8b5cf6',
 };
+
+// ─── Inventory popup ──────────────────────────────────────────────────────────
+
+type InventoryType = 'active' | 'low' | 'out';
+
+const INVENTORY_CONFIG: Record<InventoryType, {
+  title: string; dot: string; emptyMsg: string;
+}> = {
+  active: { title: 'Идэвхтэй бүтээгдэхүүн',       dot: 'bg-emerald-500', emptyMsg: 'Идэвхтэй бүтээгдэхүүн байхгүй' },
+  low:    { title: 'Бага нөөцтэй бүтээгдэхүүн',    dot: 'bg-amber-500',  emptyMsg: 'Бага нөөцтэй бүтээгдэхүүн байхгүй' },
+  out:    { title: 'Нөөц дуусчихсан бүтээгдэхүүн', dot: 'bg-red-500',    emptyMsg: 'Нөөц дуусчихсан бүтээгдэхүүн байхгүй' },
+};
+
+function InventoryModal({
+  type,
+  products,
+  isLoading,
+  onClose,
+}: {
+  type: InventoryType;
+  products: any[];
+  isLoading: boolean;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState('');
+  const cfg = INVENTORY_CONFIG[type];
+
+  const filtered = products.filter(p =>
+    p.name?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const stockBadge = (qty: number) =>
+    qty === 0
+      ? { label: 'Дуссан',          cls: 'badge-danger'  }
+      : qty <= 5
+      ? { label: `${qty} үлдсэн`,   cls: 'badge-warning' }
+      : { label: `${qty} ширхэг`,   cls: 'badge-success' };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        className="w-full max-w-lg flex flex-col rounded-2xl"
+        style={{
+          background: 'var(--surface-0)',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
+          maxHeight: '82vh',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-5 py-4 flex-shrink-0"
+          style={{ borderBottom: '1px solid var(--border)' }}
+        >
+          <div className="flex items-center gap-3">
+            <span className={cn('w-3 h-3 rounded-full flex-shrink-0', cfg.dot)} />
+            <div>
+              <h3 className="font-bold text-base leading-tight" style={{ color: 'var(--text-primary)' }}>
+                {cfg.title}
+              </h3>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                {isLoading ? 'Уншиж байна...' : `${filtered.length} бүтээгдэхүүн`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-xl flex items-center justify-center transition-colors hover:bg-[var(--surface-2)]"
+          >
+            <X className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="px-5 py-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--border)' }}>
+          <div className="relative">
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none"
+              style={{ color: 'var(--text-tertiary)' }}
+            />
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Бүтээгдэхүүний нэрээр хайх..."
+              className="input pl-9 pr-9 text-sm w-full"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-md flex items-center justify-center hover:bg-[var(--surface-2)]"
+              >
+                <X className="w-3 h-3" style={{ color: 'var(--text-tertiary)' }} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Product list */}
+        <div className="overflow-y-auto flex-1 p-4">
+          {isLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="skeleton h-14 rounded-xl" />
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-14" style={{ color: 'var(--text-tertiary)' }}>
+              <Package className="w-12 h-12 mb-3 opacity-40" />
+              <p className="text-sm font-medium">
+                {search ? `"${search}" нэртэй бүтээгдэхүүн олдсонгүй` : cfg.emptyMsg}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {filtered.map((p: any) => {
+                const img = p.image_url ?? p.images?.[0]?.url ?? null;
+                const badge = stockBadge(p.stock_quantity ?? 0);
+                return (
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-3 p-3 rounded-xl transition-colors hover:bg-[var(--surface-2)]"
+                    style={{ background: 'var(--surface-1)' }}
+                  >
+                    {/* Image */}
+                    <div
+                      className="w-11 h-11 rounded-lg flex-shrink-0 overflow-hidden flex items-center justify-center text-lg"
+                      style={{ background: 'var(--surface-2)' }}
+                    >
+                      {img
+                        ? <img src={img} alt={p.name} className="w-full h-full object-contain p-1" />
+                        : '📦'}
+                    </div>
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
+                        {p.name}
+                      </p>
+                      {p.price != null && (
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
+                          {formatPrice(p.sale_price ?? p.price)}
+                          {p.sale_price && (
+                            <span className="ml-1.5 line-through opacity-50">{formatPrice(p.price)}</span>
+                          )}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Stock badge */}
+                    <span className={cn('badge text-xs flex-shrink-0', badge.cls)}>
+                      {badge.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Footer count */}
+        {!isLoading && filtered.length > 0 && (
+          <div
+            className="px-5 py-3 flex-shrink-0 flex items-center justify-between"
+            style={{ borderTop: '1px solid var(--border)' }}
+          >
+            <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
+              {search
+                ? `${filtered.length} / ${products.length} харуулж байна`
+                : `Нийт ${products.length} бүтээгдэхүүн`}
+            </p>
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="text-xs text-brand-primary hover:underline"
+              >
+                Хайлт арилгах
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // ─── sub-components ───────────────────────────────────────────────────────────
 
@@ -103,32 +291,51 @@ function LoadingSkeleton() {
 // ─── main component ───────────────────────────────────────────────────────────
 
 export default function AdminDashboard() {
-  const [chartPeriod, setChartPeriod] = useState<'30d' | '12m'>('30d');
+  const [chartPeriod, setChartPeriod]       = useState<'30d' | '12m'>('30d');
+  const [inventoryModal, setInventoryModal] = useState<InventoryType | null>(null);
 
+  // Dashboard stats (always loaded)
   const { data, isLoading } = useQuery({
     queryKey: ['admin-dashboard-stats'],
     queryFn: adminApi.getDashboardStats,
     staleTime: 5 * 60 * 1000,
   });
 
+  // Active products — lazy: only fetches when the 'active' popup opens
+  const { data: activeData, isLoading: activeLoading } = useQuery({
+    queryKey: ['admin-products-active'],
+    queryFn:  () => adminApi.listProducts({ limit: 500, page: 1 }),
+    enabled:  inventoryModal === 'active',
+    staleTime: 5 * 60 * 1000,
+  });
+
   if (isLoading) return <LoadingSkeleton />;
 
   const {
-    revenue = {} as any,
-    orders  = {} as any,
-    users   = {} as any,
-    products = {} as any,
-    dailyRevenue    = [] as any[],
-    monthlyRevenue  = [] as any[],
-    ordersByStatus  = [] as any[],
-    topProducts     = [] as any[],
-    categoryStats   = [] as any[],
+    revenue       = {} as any,
+    orders        = {} as any,
+    users         = {} as any,
+    products      = {} as any,
+    dailyRevenue   = [] as any[],
+    monthlyRevenue = [] as any[],
+    ordersByStatus = [] as any[],
+    topProducts    = [] as any[],
+    categoryStats  = [] as any[],
     lowStockProducts = [] as any[],
-    recentOrders    = [] as any[],
-    recentUsers     = [] as any[],
+    recentOrders   = [] as any[],
+    recentUsers    = [] as any[],
   } = data || {};
 
-  // Chart data — daily uses мянган ₮, monthly uses сая ₮
+  // ── Inventory popup data (no new API calls for low/out) ──
+  const inventoryProductMap: Record<InventoryType, any[]> = {
+    active: activeData?.data ?? [],
+    low:    (lowStockProducts as any[]).filter(p => p.stock_quantity > 0),
+    out:    (lowStockProducts as any[]).filter(p => p.stock_quantity === 0),
+  };
+
+  const isInventoryLoading = inventoryModal === 'active' && activeLoading;
+
+  // ── Chart data ──
   const chartData = chartPeriod === '30d'
     ? dailyRevenue.map((r: any) => ({
         label:    new Date(r.day + 'T12:00:00').toLocaleDateString('en', { month: 'short', day: 'numeric' }),
@@ -142,75 +349,51 @@ export default function AdminDashboard() {
       }));
 
   const chartYLabel = chartPeriod === '30d' ? 'мянга ₮' : 'сая ₮';
-
-  const totalStatusOrders = ordersByStatus.reduce((s: number, r: any) => s + r.count, 0);
-
-  const totalProductRevenue = topProducts.reduce((s: number, p: any) => s + p.revenue, 0);
+  const totalStatusOrders     = ordersByStatus.reduce((s: number, r: any) => s + r.count, 0);
+  const totalProductRevenue   = topProducts.reduce((s: number, p: any) => s + p.revenue, 0);
 
   return (
     <div className="space-y-5">
 
       {/* ── Header ── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display font-bold text-xl lg:text-2xl" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
-          <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>TechMart тоймлол</p>
-        </div>
+      <div>
+        <h1 className="font-display font-bold text-xl lg:text-2xl" style={{ color: 'var(--text-primary)' }}>Dashboard</h1>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>TechMart тоймлол</p>
       </div>
 
-      {/* ── Revenue KPI cards ── */}
+      {/* ── Revenue KPI ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard
-          icon={DollarSign} color="bg-brand-primary"
-          label="Өнөөдрийн орлого"
-          value={formatPrice(revenue.today || 0)}
+        <KpiCard icon={DollarSign} color="bg-brand-primary"
+          label="Өнөөдрийн орлого" value={formatPrice(revenue.today || 0)}
           change={{ current: revenue.today, previous: revenue.yesterday }}
           changeSub={`Өчигдөр: ${formatPrice(revenue.yesterday || 0)}`}
         />
-        <KpiCard
-          icon={BarChart2} color="bg-emerald-500"
-          label="Энэ сарын орлого"
-          value={formatPrice(revenue.thisMonth || 0)}
+        <KpiCard icon={BarChart2} color="bg-emerald-500"
+          label="Энэ сарын орлого" value={formatPrice(revenue.thisMonth || 0)}
           change={{ current: revenue.thisMonth, previous: revenue.lastMonth }}
           changeSub={`Өнгөрсөн сар: ${formatPrice(revenue.lastMonth || 0)}`}
         />
-        <KpiCard
-          icon={TrendingUp} color="bg-blue-500"
-          label="Жилийн орлого"
-          value={formatPrice(revenue.thisYear || 0)}
+        <KpiCard icon={TrendingUp} color="bg-blue-500"
+          label="Жилийн орлого" value={formatPrice(revenue.thisYear || 0)}
           change={{ current: revenue.thisYear, previous: revenue.lastYear }}
           changeSub={`Өнгөрсөн жил: ${formatPrice(revenue.lastYear || 0)}`}
         />
-        <KpiCard
-          icon={ShoppingBag} color="bg-amber-500"
-          label="Дундаж захиалгын дүн"
-          value={formatPrice(orders.avgOrderValue || 0)}
+        <KpiCard icon={ShoppingBag} color="bg-amber-500"
+          label="Дундаж захиалгын дүн" value={formatPrice(orders.avgOrderValue || 0)}
           changeSub={`${orders.active || 0} идэвхтэй захиалга`}
         />
       </div>
 
-      {/* ── Mini stats row ── */}
+      {/* ── Mini stats ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <MiniStat
-          label="Өнөөдрийн захиалга"
-          value={orders.today || 0}
-          current={orders.today} previous={orders.yesterday}
-        />
-        <MiniStat
-          label="Энэ сарын захиалга"
-          value={orders.thisMonth || 0}
-          current={orders.thisMonth} previous={orders.lastMonth}
-        />
-        <MiniStat
-          label="Шинэ хэрэглэгч (сар)"
-          value={users.newThisMonth || 0}
-          current={users.newThisMonth} previous={users.newLastMonth}
-        />
-        <MiniStat
-          label="Нийт хэрэглэгч"
-          value={users.total || 0}
-          sub={`${products.totalActive || 0} идэвхтэй бүтээгдэхүүн`}
-        />
+        <MiniStat label="Өнөөдрийн захиалга"   value={orders.today || 0}
+          current={orders.today} previous={orders.yesterday} />
+        <MiniStat label="Энэ сарын захиалга"   value={orders.thisMonth || 0}
+          current={orders.thisMonth} previous={orders.lastMonth} />
+        <MiniStat label="Шинэ хэрэглэгч (сар)" value={users.newThisMonth || 0}
+          current={users.newThisMonth} previous={users.newLastMonth} />
+        <MiniStat label="Нийт хэрэглэгч"       value={users.total || 0}
+          sub={`${products.totalActive || 0} идэвхтэй бүтээгдэхүүн`} />
       </div>
 
       {/* ── Revenue chart ── */}
@@ -222,21 +405,15 @@ export default function AdminDashboard() {
           </div>
           <div className="flex gap-1 p-1 rounded-xl" style={{ background: 'var(--surface-1)' }}>
             {(['30d', '12m'] as const).map(p => (
-              <button
-                key={p}
-                onClick={() => setChartPeriod(p)}
-                className={cn(
-                  'px-3 py-1 rounded-lg text-xs font-medium transition-all',
-                  chartPeriod === p ? 'bg-brand-primary text-white shadow-sm' : ''
-                )}
-                style={chartPeriod !== p ? { color: 'var(--text-secondary)' } : {}}
-              >
+              <button key={p} onClick={() => setChartPeriod(p)}
+                className={cn('px-3 py-1 rounded-lg text-xs font-medium transition-all',
+                  chartPeriod === p ? 'bg-brand-primary text-white shadow-sm' : '')}
+                style={chartPeriod !== p ? { color: 'var(--text-secondary)' } : {}}>
                 {p === '30d' ? '30 өдөр' : '12 сар'}
               </button>
             ))}
           </div>
         </div>
-
         {chartData.length === 0 ? (
           <div className="flex items-center justify-center h-52" style={{ color: 'var(--text-tertiary)' }}>
             <p className="text-sm">Мэдээлэл байхгүй байна</p>
@@ -251,18 +428,11 @@ export default function AdminDashboard() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 10, fill: 'var(--text-secondary)' }}
-                interval="preserveStartEnd"
-              />
+              <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} interval="preserveStartEnd" />
               <YAxis tick={{ fontSize: 10, fill: 'var(--text-secondary)' }} width={38} />
               <Tooltip
                 contentStyle={{ background: 'var(--surface-0)', border: '1px solid var(--border)', borderRadius: 10, fontSize: 12 }}
-                formatter={(v: any, name: string) => [
-                  `${v.toLocaleString()} ${chartPeriod === '30d' ? 'мянга ₮' : 'сая ₮'}`,
-                  name === 'орлого' ? 'Орлого' : 'Захиалга',
-                ]}
+                formatter={(v: any) => [`${v.toLocaleString()} ${chartPeriod === '30d' ? 'мянга ₮' : 'сая ₮'}`, 'Орлого']}
               />
               <Area type="monotone" dataKey="орлого" stroke="#6C63FF" strokeWidth={2.5} fill="url(#revenueGrad)" dot={false} />
             </AreaChart>
@@ -270,7 +440,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* ── Orders by status + Inventory snapshot ── */}
+      {/* ── Orders by status + Inventory ── */}
       <div className="grid lg:grid-cols-2 gap-4">
 
         {/* Orders by status */}
@@ -283,10 +453,8 @@ export default function AdminDashboard() {
                 <div key={s.status}>
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ background: STATUS_COLOR[s.status] || '#94a3b8' }}
-                      />
+                      <span className="w-2 h-2 rounded-full flex-shrink-0"
+                            style={{ background: STATUS_COLOR[s.status] || '#94a3b8' }} />
                       <span className="text-xs capitalize font-medium" style={{ color: 'var(--text-primary)' }}>{s.status}</span>
                     </div>
                     <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
@@ -294,10 +462,8 @@ export default function AdminDashboard() {
                     </span>
                   </div>
                   <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--border)' }}>
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%`, background: STATUS_COLOR[s.status] || '#94a3b8' }}
-                    />
+                    <div className="h-full rounded-full transition-all duration-500"
+                         style={{ width: `${pct}%`, background: STATUS_COLOR[s.status] || '#94a3b8' }} />
                   </div>
                 </div>
               );
@@ -308,32 +474,63 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Inventory + Category mini chart */}
+        {/* Inventory snapshot — 3 clickable cards */}
         <div className="card p-4">
           <h3 className="font-semibold text-sm mb-4" style={{ color: 'var(--text-primary)' }}>Нөөцийн тойм</h3>
           <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="text-center p-3 rounded-xl" style={{ background: 'var(--surface-1)' }}>
-              <p className="text-xl font-bold text-emerald-500">{products.totalActive || 0}</p>
+
+            {/* Active */}
+            <button
+              onClick={() => setInventoryModal('active')}
+              className="text-center p-3 rounded-xl transition-all hover:scale-[1.03] hover:shadow-md cursor-pointer group"
+              style={{ background: 'var(--surface-1)' }}
+            >
+              <p className="text-xl font-bold text-emerald-500 group-hover:text-emerald-400 transition-colors">
+                {products.totalActive || 0}
+              </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Идэвхтэй</p>
-            </div>
-            <div className="text-center p-3 rounded-xl" style={{ background: 'var(--surface-1)' }}>
-              <p className="text-xl font-bold text-amber-500">{products.lowStockCount || 0}</p>
+              <p className="text-xs mt-1 opacity-0 group-hover:opacity-100 transition-opacity text-emerald-500">
+                Харах →
+              </p>
+            </button>
+
+            {/* Low stock */}
+            <button
+              onClick={() => setInventoryModal('low')}
+              className="text-center p-3 rounded-xl transition-all hover:scale-[1.03] hover:shadow-md cursor-pointer group"
+              style={{ background: 'var(--surface-1)' }}
+            >
+              <p className="text-xl font-bold text-amber-500 group-hover:text-amber-400 transition-colors">
+                {products.lowStockCount || 0}
+              </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Бага нөөц</p>
-            </div>
-            <div className="text-center p-3 rounded-xl" style={{ background: 'var(--surface-1)' }}>
-              <p className="text-xl font-bold text-red-500">{products.outOfStock || 0}</p>
+              <p className="text-xs mt-1 opacity-0 group-hover:opacity-100 transition-opacity text-amber-500">
+                Харах →
+              </p>
+            </button>
+
+            {/* Out of stock */}
+            <button
+              onClick={() => setInventoryModal('out')}
+              className="text-center p-3 rounded-xl transition-all hover:scale-[1.03] hover:shadow-md cursor-pointer group"
+              style={{ background: 'var(--surface-1)' }}
+            >
+              <p className="text-xl font-bold text-red-500 group-hover:text-red-400 transition-colors">
+                {products.outOfStock || 0}
+              </p>
               <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>Дуусчихсан</p>
-            </div>
+              <p className="text-xs mt-1 opacity-0 group-hover:opacity-100 transition-opacity text-red-500">
+                Харах →
+              </p>
+            </button>
           </div>
+
+          {/* Category mini chart */}
           <p className="text-xs font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>Ангилалаар зарагдсан</p>
           <ResponsiveContainer width="100%" height={110}>
             <BarChart
-              data={categoryStats.slice(0, 6).map((c: any) => ({
-                name: c.category?.slice(0, 7),
-                ш: c.unitsSold,
-              }))}
-              barSize={18}
-              margin={{ top: 0, right: 0, left: -10, bottom: 0 }}
+              data={categoryStats.slice(0, 6).map((c: any) => ({ name: c.category?.slice(0, 7), ш: c.unitsSold }))}
+              barSize={18} margin={{ top: 0, right: 0, left: -10, bottom: 0 }}
             >
               <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'var(--text-secondary)' }} />
               <YAxis hide />
@@ -347,7 +544,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── Top products table ── */}
+      {/* ── Top products ── */}
       <div className="card p-4">
         <div className="flex items-center gap-2 mb-4">
           <Package className="w-4 h-4 text-brand-primary" />
@@ -370,9 +567,8 @@ export default function AdminDashboard() {
                 const pct = totalProductRevenue > 0 ? Math.round((p.revenue / totalProductRevenue) * 100) : 0;
                 return (
                   <tr key={p.id} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td className="py-2.5 pr-4 font-mono font-bold w-6" style={{ color: i < 3 ? '#6C63FF' : 'var(--text-tertiary)' }}>
-                      {i + 1}
-                    </td>
+                    <td className="py-2.5 pr-4 font-mono font-bold w-6"
+                        style={{ color: i < 3 ? '#6C63FF' : 'var(--text-tertiary)' }}>{i + 1}</td>
                     <td className="py-2.5 pr-4">
                       <p className="font-medium truncate max-w-[180px]" style={{ color: 'var(--text-primary)' }}>{p.name}</p>
                     </td>
@@ -390,11 +586,7 @@ export default function AdminDashboard() {
                 );
               })}
               {topProducts.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-tertiary)' }}>
-                    Мэдээлэл байхгүй
-                  </td>
-                </tr>
+                <tr><td colSpan={5} className="py-8 text-center" style={{ color: 'var(--text-tertiary)' }}>Мэдээлэл байхгүй</td></tr>
               )}
             </tbody>
           </table>
@@ -403,7 +595,6 @@ export default function AdminDashboard() {
 
       {/* ── Low stock alert + Recent users ── */}
       <div className="grid lg:grid-cols-2 gap-4">
-
         <div className="card p-4">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4 text-amber-500" />
@@ -463,11 +654,12 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {recentOrders.map((o: any) => (
-                <tr key={o.id} className="transition-colors hover:bg-[var(--surface-1)]" style={{ borderBottom: '1px solid var(--border)' }}>
+                <tr key={o.id} className="transition-colors hover:bg-[var(--surface-1)]"
+                    style={{ borderBottom: '1px solid var(--border)' }}>
                   <td className="py-2.5 pr-3 font-mono" style={{ color: 'var(--text-tertiary)' }}>#{o.id.slice(0, 6)}</td>
                   <td className="py-2.5 pr-3">
                     <p className="truncate max-w-[100px] font-medium" style={{ color: 'var(--text-primary)' }}>{o.full_name}</p>
-                    <p className="truncate max-w-[100px] text-xs" style={{ color: 'var(--text-tertiary)' }}>{o.email}</p>
+                    <p className="truncate max-w-[100px]" style={{ color: 'var(--text-tertiary)' }}>{o.email}</p>
                   </td>
                   <td className="py-2.5 pr-3 font-semibold" style={{ color: 'var(--text-primary)' }}>{formatPrice(o.total_amount)}</td>
                   <td className="py-2.5 pr-3" style={{ color: 'var(--text-secondary)' }}>{o.item_count} ш</td>
@@ -481,6 +673,16 @@ export default function AdminDashboard() {
           </table>
         </div>
       </div>
+
+      {/* ── Inventory modal ── */}
+      {inventoryModal && (
+        <InventoryModal
+          type={inventoryModal}
+          products={inventoryProductMap[inventoryModal]}
+          isLoading={isInventoryLoading}
+          onClose={() => setInventoryModal(null)}
+        />
+      )}
 
     </div>
   );

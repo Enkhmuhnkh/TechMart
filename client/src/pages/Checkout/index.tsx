@@ -11,7 +11,7 @@ import toast from 'react-hot-toast';
 const PAYMENT_METHODS = [
   { id: 'cash', label: 'Бэлэн мөнгө', sublabel: 'Хүргэлтийн үед төлнө', icon: '💵' },
   { id: 'qpay', label: 'QPay', sublabel: 'QR кодоор төлнө', icon: '📱' },
-  { id: 'card', label: 'Карт', sublabel: 'Visa / Mastercard', icon: '💳' },
+  
 ];
 
 const DISTRICTS = [
@@ -154,7 +154,7 @@ export default function CheckoutPage() {
                     {t('checkout.fullName')} *
                   </label>
                   <input value={address.full_name} onChange={e => setAddr('full_name', e.target.value)}
-                    className="input text-sm" placeholder="Батэрдэнэ" />
+                    className="input text-sm" placeholder="Захиалачийн нэр..." />
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <label className="text-xs font-semibold mb-1.5 block" style={{ color: 'var(--text-secondary)' }}>
