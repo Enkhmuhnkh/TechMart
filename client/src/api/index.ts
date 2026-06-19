@@ -184,6 +184,9 @@ export const adminApi = {
 
   savePaymentGateway: (provider: string, config: object, isActive: boolean, isSandbox: boolean) =>
   apiClient.post('/payments/gateways', { provider, config, is_active: isActive, is_sandbox: isSandbox }).then(r => r.data),
+
+  updateCredentials: (data: { current_password: string; new_email?: string; new_password?: string }) =>
+    apiClient.patch('/admin/credentials', data).then(r => r.data),
 };
 
 //-----PaymentApi-------------------------------------
