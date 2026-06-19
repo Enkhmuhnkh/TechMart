@@ -197,7 +197,7 @@ function HeroBanner() {
     <div className="relative overflow-hidden rounded-xl sm:rounded-2xl"
       style={{
         background: b.bg,
-        height: 'clamp(180px, 50vw, 400px)'
+        height: 'clamp(210px, 52vw, 400px)'
       }}>
 
       {/* Background image */}
@@ -252,7 +252,7 @@ function HeroBanner() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08, duration: 0.5, ease: premiumEase }}
-            className="inline-flex items-center gap-1.5 font-bold px-3 py-1.5 rounded-full mb-3 w-fit"
+            className="inline-flex items-center gap-1.5 font-bold px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-full mb-1.5 sm:mb-3 w-fit"
             style={{
               fontSize: 11,
               background: b.accent + '22',
@@ -263,7 +263,7 @@ function HeroBanner() {
           </motion.span>
 
           {/* Title — Staggered fade-in-up for each line */}
-          <div className="mb-2">
+          <div className="mb-2.5 sm:mb-2">
             {titleLines.map((line: string, idx: number) => (
               <motion.div
                 key={`title-line-${idx}`}
@@ -287,7 +287,7 @@ function HeroBanner() {
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 + titleLines.length * 0.12, duration: 0.6, ease: appleEase }}
-            className="mb-5 leading-relaxed line-clamp-2"
+            className="mb-2 sm:mb-5 leading-relaxed line-clamp-1 sm:line-clamp-2 hidden sm:block"
             style={{
               fontSize: 'clamp(11px, 1.8vw, 13px)',
               color: 'rgba(255,255,255,0.5)',
@@ -306,8 +306,9 @@ function HeroBanner() {
               style={{
                 background: b.accent,
                 boxShadow: `0 6px 20px ${b.accent}55`,
-                padding: '10px 24px',
-                fontSize: 13,
+                padding: 'clamp(7px,2vw,10px) clamp(14px,4vw,24px)',
+                fontSize: 'clamp(11px,2vw,13px)',
+                minHeight: 'unset',
                 transition: 'all 0.5s cubic-bezier(0.25, 1, 0.5, 1)',
               }}
               onMouseEnter={e => {
@@ -348,7 +349,7 @@ function HeroBanner() {
               whileHover={{ scale: 1.03 }}
               transition={{ type: 'spring', stiffness: 120, damping: 20 }}
               style={{
-                height: 240,
+                height: 'clamp(90px, 28vw, 240px)',
                 width: 'auto',
                 maxWidth: '100%',
                 filter: `drop-shadow(0 24px 40px ${b.accent}66)`,

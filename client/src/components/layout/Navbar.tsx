@@ -119,7 +119,7 @@ export function Navbar() {
             </motion.button>
 
             {/* AI button — purple gradient, original style */}
-            <Link to="/ai" className="flex-shrink-0">
+            <Link to="/ai" className="flex-shrink-0 flex items-center">
               <motion.div
                 whileHover={{ scale: 1.07, boxShadow: '0 8px 24px rgba(99,102,241,0.5)' }}
                 whileTap={{ scale: 0.91 }}
@@ -239,7 +239,7 @@ export function Navbar() {
                 </AnimatePresence>
               </div>
             ) : (
-              <Link to="/login" className="flex-shrink-0 ml-0.5">
+              <Link to="/login" className="flex-shrink-0 ml-0.5 flex items-center">
                 <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.95 }}
                   className="px-3 py-1.5 rounded-lg text-xs font-medium flex items-center"
                   style={{

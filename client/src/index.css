@@ -597,7 +597,11 @@
   .card { border-radius: var(--r-md); }
 
   /* Larger touch targets */
-  .btn, button, a, [role="button"] {
+  .btn, button, [role="button"] {
+    min-height: 40px;
+  }
+  /* Standalone action links (not nav wrappers) */
+  a.btn, a.btn-ghost, a.btn-primary, a.btn-secondary, a.btn-lime {
     min-height: 40px;
   }
 
